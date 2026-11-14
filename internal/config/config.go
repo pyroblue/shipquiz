@@ -57,6 +57,8 @@ func DefaultModel(provider string) string {
 		return "gpt-4.1-mini"
 	case "gemini":
 		return "gemini-2.5-flash"
+	case "xai":
+		return "grok-4.3"
 	default:
 		return "claude-sonnet-4-5"
 	}

@@ -33,13 +33,13 @@ shipquiz install
 Setup does this:
 
 1. If a config already exists, setup asks before replacing it.
-2. Pick anthropic, openai, or gemini. Gemini uses Google's version of the OpenAI API.
+2. Pick anthropic, openai, gemini, or xai. Gemini and xAI use the OpenAI API.
 3. The API key is read from the terminal and stored in the macOS Keychain, or in a file only you can read on Linux.
 4. shipquiz lists that provider's models and lets you pick one. The default is a fast model for that provider.
 5. You can send a one-token test to check that the key and model work.
 6. Inside a git repo, setup offers to install the pre-push hook.
 
-Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `base_url` is the site origin, such as `https://api.anthropic.com`. For OpenAI and Gemini it is the API root, and it already includes the version, such as `https://api.openai.com/v1`.
+Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `base_url` is the site origin, such as `https://api.anthropic.com`. For OpenAI, Gemini, and xAI it is the API root, and it already includes the version, such as `https://api.openai.com/v1` or `https://api.x.ai/v1`.
 
 `SHIPQUIZ_LLM_API_KEY` overrides the saved key. That is the model provider key CI sends as a repository secret.
 

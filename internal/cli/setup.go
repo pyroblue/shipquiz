@@ -39,6 +39,7 @@ func cmdSetup() int {
 	fmt.Fprintln(con.out, "  1  anthropic")
 	fmt.Fprintln(con.out, "  2  openai")
 	fmt.Fprintln(con.out, "  3  gemini")
+	fmt.Fprintln(con.out, "  4  xai")
 	choice, err := con.prompt("Provider [1]: ")
 	if err != nil {
 		return fail(err)
@@ -50,8 +51,10 @@ func cmdSetup() int {
 		cfg.Provider = "openai"
 	case "3", "gemini":
 		cfg.Provider = "gemini"
+	case "4", "xai":
+		cfg.Provider = "xai"
 	default:
-		fmt.Fprintln(con.out, "Use 1, 2, or 3.")
+		fmt.Fprintln(con.out, "Use 1, 2, 3, or 4.")
 		return 1
 	}
 	cfg.Model = config.DefaultModel(cfg.Provider)
@@ -185,6 +188,8 @@ func suggestedModels(provider string) []string {
 		return []string{config.DefaultModel("openai")}
 	case "gemini":
 		return []string{config.DefaultModel("gemini")}
+	case "xai":
+		return []string{config.DefaultModel("xai"), "grok-4.7"}
 	default:
 		return []string{config.DefaultModel("anthropic"), "claude-haiku-4-5"}
 	}
@@ -223,9 +228,9 @@ func modelLess(a, b string) bool {
 func modelPriority(id string) int {
 	lower := strings.ToLower(id)
 	switch {
-	case strings.Contains(lower, "sonnet") || strings.Contains(lower, "gpt-4.1") || strings.Contains(lower, "gpt-5") || strings.Contains(lower, "gemini-2.5"):
+	case strings.Contains(lower, "sonnet") || strings.Contains(lower, "gpt-4.1") || strings.Contains(lower, "gpt-5") || strings.Contains(lower, "gemini-2.5") || strings.Contains(lower, "grok-4.3") || strings.Contains(lower, "grok-4.7"):
 		return 0
-	case strings.Contains(lower, "haiku") || strings.Contains(lower, "opus") || strings.Contains(lower, "gpt-4") || strings.Contains(lower, "gemini"):
+	case strings.Contains(lower, "haiku") || strings.Contains(lower, "opus") || strings.Contains(lower, "gpt-4") || strings.Contains(lower, "gemini") || strings.Contains(lower, "grok"):
 		return 1
 	default:
 		return 2

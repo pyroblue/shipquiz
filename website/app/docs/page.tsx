@@ -66,7 +66,7 @@ export default function DocsPage() {
           <CodeBlock label="install" code={`${installCommand}\n${pathExport}`} />
           <ol className="list-decimal space-y-2 pl-5 leading-relaxed text-muted">
             <li>If a config already exists, setup asks before replacing it.</li>
-            <li>Pick anthropic, openai, or gemini. Gemini uses Google’s version of the OpenAI API.</li>
+            <li>Pick anthropic, openai, gemini, or xai. Gemini and xAI use the OpenAI API.</li>
             <li>The API key is read from the terminal and stored in the macOS Keychain, or in a file only you can read on Linux.</li>
             <li>shipquiz lists that provider’s models and lets you pick one. The default is a fast model for that provider.</li>
             <li>You can send a one-token test to check that the key and model work.</li>
@@ -75,7 +75,7 @@ export default function DocsPage() {
           <p className="leading-relaxed text-muted">
             Set <code className="font-mono text-ink">base_url</code> when you use a host that speaks the OpenAI API.
             For Anthropic, <code className="font-mono text-ink">base_url</code> is the site origin, such as{" "}
-            <code className="font-mono text-ink">https://api.anthropic.com</code>. For OpenAI and Gemini it is the API root, and it already includes the version, such as <code className="font-mono text-ink">https://api.openai.com/v1</code>.
+            <code className="font-mono text-ink">https://api.anthropic.com</code>. For OpenAI, Gemini, and xAI it is the API root, and it already includes the version, such as <code className="font-mono text-ink">https://api.openai.com/v1</code> or <code className="font-mono text-ink">https://api.x.ai/v1</code>.
           </p>
         </section>
 

@@ -32,7 +32,7 @@ type Client interface {
 
 // New builds a client for provider. baseURL is optional.
 // anthropic expects an origin (https://api.anthropic.com).
-// openai and gemini expect an API root that already includes /v1 when required.
+// openai, gemini, and xai expect an API root that already includes /v1 when required.
 func New(provider, baseURL, apiKey string) (Client, error) {
 	if strings.TrimSpace(apiKey) == "" {
 		return nil, fmt.Errorf("missing API key")
@@ -54,8 +54,13 @@ func New(provider, baseURL, apiKey string) (Client, error) {
 			baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
 		}
 		return &openAIClient{base: strings.TrimRight(baseURL, "/"), key: apiKey, http: newHTTP()}, nil
+	case "xai":
+		if baseURL == "" {
+			baseURL = "https://api.x.ai/v1"
+		}
+		return &openAIClient{base: strings.TrimRight(baseURL, "/"), key: apiKey, http: newHTTP()}, nil
 	default:
-		return nil, fmt.Errorf("unknown provider %q (use anthropic, openai, or gemini)", provider)
+		return nil, fmt.Errorf("unknown provider %q (use anthropic, openai, gemini, or xai)", provider)
 	}
 }
 
@@ -279,7 +284,7 @@ func decodeModelIDs(res *http.Response, err error) ([]string, error) {
 
 func skipModel(id string) bool {
 	lower := strings.ToLower(id)
-	for _, part := range []string{"embed", "tts", "whisper", "dall-e", "moderation", "realtime", "image"} {
+	for _, part := range []string{"embed", "tts", "whisper", "dall-e", "moderation", "realtime", "image", "imagine", "voice"} {
 		if strings.Contains(lower, part) {
 			return true
 		}

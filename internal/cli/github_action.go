@@ -20,7 +20,7 @@ import (
 
 const llmSecret = "SHIPQUIZ_LLM_API_KEY"
 
-var errBadProvider = errors.New("use 1, 2, or 3")
+var errBadProvider = errors.New("use 1, 2, 3, or 4")
 
 func cmdGitHubAction(args []string) int {
 	fs := flag.NewFlagSet("github-action", flag.ContinueOnError)
@@ -44,7 +44,7 @@ func cmdGitHubAction(args []string) int {
 
 	provider, err := askProvider(con, cfg.Provider)
 	if errors.Is(err, errBadProvider) {
-		fmt.Fprintln(con.out, "Use 1, 2, or 3.")
+		fmt.Fprintln(con.out, "Use 1, 2, 3, or 4.")
 		return 1
 	}
 	if err != nil {
@@ -125,11 +125,14 @@ func askProvider(con console, current string) (string, error) {
 		def = "2"
 	case "gemini":
 		def = "3"
+	case "xai":
+		def = "4"
 	}
 	fmt.Fprintln(con.out, "\nProvider")
 	fmt.Fprintln(con.out, "  1  anthropic")
 	fmt.Fprintln(con.out, "  2  openai")
 	fmt.Fprintln(con.out, "  3  gemini")
+	fmt.Fprintln(con.out, "  4  xai")
 	choice, err := con.prompt("Provider [" + def + "]: ")
 	if err != nil {
 		return "", err
@@ -144,6 +147,8 @@ func askProvider(con console, current string) (string, error) {
 		return "openai", nil
 	case "3", "gemini":
 		return "gemini", nil
+	case "4", "xai":
+		return "xai", nil
 	default:
 		return "", errBadProvider
 	}
