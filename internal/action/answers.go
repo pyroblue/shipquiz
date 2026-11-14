@@ -48,6 +48,10 @@ func decodeMarker(body string) (Marker, bool) {
 }
 
 func renderQuiz(marker Marker) (string, error) {
+	for i := range marker.Quiz.Questions {
+		marker.Quiz.Questions[i].Reference = ""
+		marker.Quiz.Questions[i].WhyItMatters = ""
+	}
 	encoded, err := encodeMarker(marker)
 	if err != nil {
 		return "", err
@@ -58,9 +62,6 @@ func renderQuiz(marker Marker) (string, error) {
 	b.WriteString("Reply in this thread with your answers, in your own words. The model matches the reply to each question.\n\n")
 	for _, question := range marker.Quiz.Questions {
 		fmt.Fprintf(&b, "### %s\n\n%s\n\n", question.ID, question.Question)
-		if question.WhyItMatters != "" {
-			fmt.Fprintf(&b, "_Why it matters:_ %s\n\n", question.WhyItMatters)
-		}
 	}
 	return b.String(), nil
 }

@@ -23,9 +23,9 @@ model = "claude-sonnet-4-5"
 
 [quiz]
 min_questions = 1
-max_questions = 7
+max_questions = 5
 passing_average = 1.5
-timeout_seconds = 20
+timeout_seconds = 60
 
 [hooks]
 pre_push = true

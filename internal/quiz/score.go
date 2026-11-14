@@ -7,6 +7,7 @@ type Question struct {
 	ID           string `json:"id"`
 	Question     string `json:"question"`
 	WhyItMatters string `json:"why_it_matters"`
+	Reference    string `json:"reference,omitempty"`
 }
 
 // Generated is the model’s quiz for a diff.
@@ -97,8 +98,8 @@ func clampScore(n int) int {
 
 // Normalize fills missing ids and trims the question list to [minQ, maxQ].
 func Normalize(g Generated, minQ, maxQ int) Generated {
-	if maxQ > 7 {
-		maxQ = 7
+	if maxQ > 5 {
+		maxQ = 5
 	}
 	if maxQ < 1 {
 		maxQ = 1
@@ -113,6 +114,7 @@ func Normalize(g Generated, minQ, maxQ int) Generated {
 	for _, q := range g.Questions {
 		q.Question = strings.TrimSpace(q.Question)
 		q.WhyItMatters = strings.TrimSpace(q.WhyItMatters)
+		q.Reference = strings.TrimSpace(q.Reference)
 		if q.Question == "" {
 			continue
 		}

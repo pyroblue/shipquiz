@@ -202,7 +202,10 @@ export default function DocsPage() {
             shipquiz checks this itself after the model replies, so one wrong answer still fails the quiz.
           </p>
           <p className="leading-relaxed text-muted">
-            Questions have to be about this diff. They are not questions about syntax or style. Even a trivial change gets one question.
+            Questions have to be about this diff. They stay at the system and product level: purpose, ownership,
+            boundaries, guarantees, failure behavior, and major trade-offs. Most quizzes have 1–3 questions. Diffs
+            with four or five distinct architectural decisions can have 4–5. Ctrl-G shows a reference answer. A blank
+            line submits. After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1.
             The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches{" "}
             <code className="font-mono text-ink">skip_paths</code>.
           </p>

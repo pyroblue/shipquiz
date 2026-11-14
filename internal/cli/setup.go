@@ -15,6 +15,7 @@ import (
 	"github.com/shipquiz/shipquiz/internal/hook"
 	"github.com/shipquiz/shipquiz/internal/keychain"
 	"github.com/shipquiz/shipquiz/internal/llm"
+	"github.com/shipquiz/shipquiz/internal/ui"
 )
 
 func cmdSetup() int {
@@ -35,12 +36,13 @@ func cmdSetup() int {
 		}
 	}
 
-	fmt.Fprintln(con.out, "\nProvider")
-	fmt.Fprintln(con.out, "  1  anthropic")
-	fmt.Fprintln(con.out, "  2  openai")
-	fmt.Fprintln(con.out, "  3  gemini")
-	fmt.Fprintln(con.out, "  4  xai")
-	choice, err := con.prompt("Provider [1]: ")
+	ui.Hero(con.out)
+	ui.Section(con.out, "Provider")
+	ui.Choice(con.out, 1, "anthropic")
+	ui.Choice(con.out, 2, "openai")
+	ui.Choice(con.out, 3, "gemini")
+	ui.Choice(con.out, 4, "xai")
+	choice, err := con.prompt(ui.Ask(con.out, "Provider", "1"))
 	if err != nil {
 		return fail(err)
 	}
@@ -64,14 +66,14 @@ func cmdSetup() int {
 		return fail(err)
 	}
 	if secret == "" {
-		fmt.Fprintln(con.out, "An API key is required.")
+		ui.Hint(con.out, "An API key is required.")
 		return 1
 	}
 	if err := keychain.Set(cfg.Provider, secret); err != nil {
 		return fail(err)
 	}
 
-	base, err := con.prompt("Base URL (blank for the provider default): ")
+	base, err := con.prompt(ui.Ask(con.out, "Base URL", "blank for the provider default"))
 	if err != nil {
 		return fail(err)
 	}
@@ -101,17 +103,17 @@ func cmdSetup() int {
 		})
 		cancel()
 		if smokeErr != nil {
-			fmt.Fprintf(con.out, "Smoke test failed: %v\n", smokeErr)
-			fmt.Fprintln(con.out, "The key is stored. Fix the model or key and run shipquiz setup again.")
+			fmt.Fprintln(con.out, ui.Fail(con.out, "Smoke test failed: ")+smokeErr.Error())
+			ui.Hint(con.out, "The key is stored. Fix the model or key and run shipquiz setup again.")
 		} else {
-			fmt.Fprintln(con.out, "Smoke test ok.")
+			fmt.Fprintln(con.out, ui.Pass(con.out, "Smoke test ok."))
 		}
 	}
 
 	if err := config.Save(cfg); err != nil {
 		return fail(err)
 	}
-	fmt.Fprintf(con.out, "Saved %s (%s).\n", mustConfigPath(), cfg.Model)
+	fmt.Fprintf(con.out, "%s  %s\n", ui.Pass(con.out, "Saved"), ui.Muted(con.out, mustConfigPath()+" ("+cfg.Model+")"))
 	return offerHook(con)
 }
 
@@ -120,7 +122,7 @@ func pickModel(con console, client llm.Client, provider, current string) (string
 	live, err := client.ListModels(ctx)
 	cancel()
 	if err != nil {
-		fmt.Fprintf(con.out, "Could not list models: %v\n", err)
+		fmt.Fprintln(con.out, ui.Fail(con.out, "Could not list models: ")+err.Error())
 		live = nil
 	}
 	models := modelChoices(provider, live, current)
@@ -131,12 +133,12 @@ func pickModel(con console, client llm.Client, provider, current string) (string
 		}
 		return entered, nil
 	}
-	fmt.Fprintln(con.out, "\nModels")
+	ui.Section(con.out, "Models")
 	for i, model := range models {
-		fmt.Fprintf(con.out, "  %d  %s\n", i+1, model)
+		ui.Choice(con.out, i+1, model)
 	}
-	fmt.Fprintln(con.out, "Pick a number, or type a model id.")
-	entered, err := con.prompt("Model [1]: ")
+	ui.Hint(con.out, "Pick a number, or type a model id.")
+	entered, err := con.prompt(ui.Ask(con.out, "Model", "1"))
 	if err != nil {
 		return "", err
 	}
@@ -243,7 +245,7 @@ func offerHook(con console) int {
 		return 0
 	}
 	if hook.Installed() {
-		fmt.Fprintln(con.out, "Pre-push hook is already installed.")
+		fmt.Fprintln(con.out, ui.Pass(con.out, "Pre-push hook is already installed."))
 		printNext(con)
 		return 0
 	}
@@ -255,22 +257,22 @@ func offerHook(con console) int {
 		if err := hook.Install(); err != nil {
 			return fail(err)
 		}
-		fmt.Fprintln(con.out, "Pre-push hook installed.")
+		fmt.Fprintln(con.out, ui.Pass(con.out, "Pre-push hook installed."))
 	}
 	printNext(con)
 	return 0
 }
 
 func printNext(con console) {
-	fmt.Fprintln(con.out, `
-Ready.
-  shipquiz quiz     quiz the current change
-  shipquiz status   show config, hook, and key
-  git push          runs the quiz when the hook is installed
-
-Skip one push with SHIPQUIZ_SKIP=1 git push, or git push --no-verify.
-If this shell cannot find shipquiz yet:
-  export PATH="$HOME/.shipquiz/bin:$PATH"`)
+	fmt.Fprintln(con.out)
+	fmt.Fprintln(con.out, ui.Pass(con.out, "Ready."))
+	ui.Command(con.out, "shipquiz quiz", "quiz the current change")
+	ui.Command(con.out, "shipquiz status", "show config, hook, and key")
+	ui.Command(con.out, "git push", "runs the quiz when the hook is installed")
+	fmt.Fprintln(con.out)
+	ui.Hint(con.out, "Skip one push with SHIPQUIZ_SKIP=1 git push, or git push --no-verify.")
+	ui.Hint(con.out, "If this shell cannot find shipquiz yet:")
+	fmt.Fprintln(con.out, "  "+ui.Stamp(con.out, `export PATH="$HOME/.shipquiz/bin:$PATH"`))
 }
 
 func mustConfigPath() string {

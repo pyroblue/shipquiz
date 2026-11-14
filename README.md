@@ -74,9 +74,9 @@ model = "claude-sonnet-4-5"
 
 [quiz]
 min_questions = 1
-max_questions = 7
+max_questions = 5
 passing_average = 1.5
-timeout_seconds = 20
+timeout_seconds = 60
 
 [hooks]
 pre_push = true
@@ -137,7 +137,9 @@ The same file is in this repo at `skills/shipquiz/SKILL.md` and on the site at [
 
 Each answer is 0 (wrong or missing), 1 (partial), or 2 (clear). The quiz passes only when the average is at least `passing_average` (default 1.5) and no question scored 0. shipquiz checks this itself after the model replies, so one wrong answer still fails the quiz.
 
-Questions have to be about this diff. They are not questions about syntax or style. Question count follows the size of the change: 1 trivial, 2 tiny, 3 small, 4–5 medium, 6–7 large. The hard cap is 7. Even a trivial change gets one question.
+Questions have to be about this diff. They stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs. The model asks one question per meaningful architectural decision. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct architectural decisions. The hard cap is 5. Ctrl-G shows a reference answer. A blank line submits. Even a trivial change gets one question.
+
+After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1. Correct answers are preserved.
 
 The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches `skip_paths`.
 

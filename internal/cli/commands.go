@@ -22,6 +22,7 @@ import (
 	"github.com/shipquiz/shipquiz/internal/keychain"
 	"github.com/shipquiz/shipquiz/internal/llm"
 	"github.com/shipquiz/shipquiz/internal/quiz"
+	"github.com/shipquiz/shipquiz/internal/ui"
 	"github.com/shipquiz/shipquiz/internal/version"
 )
 
@@ -35,8 +36,8 @@ func cmdInstall() int {
 	if err := hook.Install(); err != nil {
 		return fail(err)
 	}
-	fmt.Println("shipquiz: pre-push hook installed")
-	fmt.Println("Skip once with SHIPQUIZ_SKIP=1 git push, or git push --no-verify.")
+	fmt.Println(ui.Pass(os.Stdout, "Pre-push hook installed."))
+	fmt.Println(ui.Muted(os.Stdout, "Skip once with SHIPQUIZ_SKIP=1 git push, or git push --no-verify."))
 	return 0
 }
 
@@ -48,7 +49,7 @@ func cmdUninstall() int {
 	if err := hook.Uninstall(); err != nil {
 		return fail(err)
 	}
-	fmt.Println("shipquiz: pre-push hook removed")
+	fmt.Println(ui.Pass(os.Stdout, "Pre-push hook removed."))
 	return 0
 }
 
@@ -59,29 +60,31 @@ func cmdStatus() int {
 		return fail(err)
 	}
 	path, _ := config.Path()
-	fmt.Printf("version:  %s\n", version.Current)
-	fmt.Printf("provider: %s\n", cfg.Provider)
-	fmt.Printf("model:    %s\n", cfg.Model)
+	ui.Banner(os.Stdout)
+	fmt.Println()
+	ui.Row(os.Stdout, "version", version.Current)
+	ui.Row(os.Stdout, "provider", cfg.Provider)
+	ui.Row(os.Stdout, "model", cfg.Model)
 	if cfg.BaseURL != "" {
-		fmt.Printf("base url: %s\n", cfg.BaseURL)
+		ui.Row(os.Stdout, "base url", cfg.BaseURL)
 	}
-	fmt.Printf("config:   %s\n", path)
-	fmt.Printf("timeout:  %ds\n", cfg.Quiz.TimeoutSeconds)
-	fmt.Printf("pass:     average >= %.2f and no zeros\n", cfg.Quiz.PassingAverage)
+	ui.Row(os.Stdout, "config", path)
+	ui.Row(os.Stdout, "timeout", fmt.Sprintf("%ds", cfg.Quiz.TimeoutSeconds))
+	ui.Row(os.Stdout, "pass", fmt.Sprintf("average >= %.2f and no zeros", cfg.Quiz.PassingAverage))
 	if root != "" {
-		fmt.Printf("repo:     %s\n", root)
+		ui.Row(os.Stdout, "repo", root)
 		if hook.Installed() {
-			fmt.Println("hook:     installed")
+			ui.Row(os.Stdout, "hook", ui.Pass(os.Stdout, "installed"))
 		} else {
-			fmt.Println("hook:     not installed")
+			ui.Row(os.Stdout, "hook", ui.Muted(os.Stdout, "not installed"))
 		}
 	} else {
-		fmt.Println("repo:     (not a git repository)")
+		ui.Row(os.Stdout, "repo", ui.Muted(os.Stdout, "not a git repository"))
 	}
-	fmt.Print("api key:  ")
+	fmt.Print(ui.Muted(os.Stdout, fmt.Sprintf("  %-8s  ", "api key")))
 	apiKey, err := keychain.Get(cfg.Provider)
 	if err != nil || apiKey == "" {
-		fmt.Println("missing")
+		fmt.Println(ui.Fail(os.Stdout, "missing"))
 		return 0
 	}
 	client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
@@ -96,7 +99,7 @@ func cmdStatus() int {
 		fmt.Printf("present, provider rejected it (%v)\n", err)
 		return 0
 	}
-	fmt.Println("valid")
+	fmt.Println(ui.Pass(os.Stdout, "valid"))
 	return 0
 }
 

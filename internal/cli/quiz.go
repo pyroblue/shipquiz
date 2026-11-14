@@ -55,7 +55,6 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		fmt.Fprintln(os.Stderr, "shipquiz: no cached quiz for this diff")
 		return 1
 	} else {
-		fmt.Fprintln(os.Stderr, "shipquiz: generating questions…")
 		apiKey, err := keychain.Get(cfg.Provider)
 		if err != nil {
 			fmt.Fprintln(os.Stderr, "shipquiz: no API key. Run shipquiz setup.")
@@ -66,12 +65,17 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 			return fail(err)
 		}
 		genCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
+		stop := ui.Spin(os.Stderr, "generating questions")
 		generated, err = quiz.Generate(genCtx, client, cfg.Model, diff, cfg.QuestionStyle, cfg.Quiz.MinQuestions, cfg.Quiz.MaxQuestions)
+		stop()
 		cancel()
 		if err != nil {
-			if hook && timedOut(genCtx, err) {
-				fmt.Fprintln(os.Stderr, "shipquiz: timed out generating questions; allowing this push")
-				return 0
+			if timedOut(genCtx, err) {
+				if hook {
+					fmt.Fprintln(os.Stderr, "shipquiz: timed out generating questions; allowing this push")
+					return 0
+				}
+				return fail(fmt.Errorf("timed out generating questions after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
 			}
 			return fail(err)
 		}
@@ -82,7 +86,7 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 	}
 
 	ui.PrintIntro(con.out, generated)
-	answers, err := ui.CollectAnswers(con.in, con.out, generated.Questions)
+	answers, err := ui.CollectAnswers(con.in, con.file, con.out, generated.Questions)
 	if err != nil {
 		if hook || errors.Is(err, io.EOF) {
 			fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
@@ -91,7 +95,6 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		return fail(err)
 	}
 
-	fmt.Fprintln(os.Stderr, "shipquiz: grading…")
 	apiKey, err := keychain.Get(cfg.Provider)
 	if err != nil {
 		fmt.Fprintln(os.Stderr, "shipquiz: no API key. Run shipquiz setup.")
@@ -101,34 +104,105 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 	if err != nil {
 		return fail(err)
 	}
-	gradeCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
-	ev, err := quiz.Grade(gradeCtx, client, cfg.Model, diff, generated.Questions, answers, cfg.Quiz.PassingAverage)
-	cancel()
-	if err != nil {
-		if hook && timedOut(gradeCtx, err) {
-			fmt.Fprintln(os.Stderr, "shipquiz: timed out grading; allowing this push")
+	for {
+		gradeCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
+		stop := ui.Spin(os.Stderr, "grading answers")
+		ev, gradeErr := quiz.Grade(gradeCtx, client, cfg.Model, diff, generated.Questions, answers, cfg.Quiz.PassingAverage)
+		stop()
+		cancel()
+		if gradeErr != nil {
+			if timedOut(gradeCtx, gradeErr) {
+				if hook {
+					fmt.Fprintln(os.Stderr, "shipquiz: timed out grading; allowing this push")
+					return 0
+				}
+				return fail(fmt.Errorf("timed out grading after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
+			}
+			return fail(gradeErr)
+		}
+
+		entry.Generated = generated
+		entry.Passed = ev.Passed()
+		entry.Score = ev.Score
+		if err := quiz.StoreEntry(key, entry); err != nil {
+			fmt.Fprintf(os.Stderr, "shipquiz: cache: %v\n", err)
+		}
+		ui.PrintResult(con.out, ev)
+		if ev.Passed() {
 			return 0
 		}
-		return fail(err)
-	}
-	entry.Generated = generated
-	entry.Passed = ev.Passed()
-	entry.Score = ev.Score
-	if err := quiz.StoreEntry(key, entry); err != nil {
-		fmt.Fprintf(os.Stderr, "shipquiz: cache: %v\n", err)
-	}
-	ui.PrintResult(con.out, ev)
-	if !ev.Passed() {
-		if hook {
-			fmt.Fprintln(con.out, "push blocked. Explain the change and push again, or use --no-verify.")
+
+		missed := missedQuestions(generated.Questions, ev)
+		if len(missed) == 0 {
+			break
 		}
-		return 1
+		retry, promptErr := con.confirm("Retake missed questions?", false)
+		if promptErr != nil && !errors.Is(promptErr, io.EOF) {
+			return fail(promptErr)
+		}
+		if !retry {
+			break
+		}
+		retried, answerErr := ui.CollectAnswers(con.in, con.file, con.out, missed)
+		if answerErr != nil {
+			if hook || errors.Is(answerErr, io.EOF) {
+				fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
+				return 1
+			}
+			return fail(answerErr)
+		}
+		answers = mergeAnswers(answers, retried)
 	}
-	return 0
+	if hook {
+		fmt.Fprintln(con.out, ui.Fail(con.out, "Push blocked.")+" Explain the change and push again, or use --no-verify.")
+	}
+	return 1
+}
+
+func missedQuestions(questions []quiz.Question, ev quiz.Evaluation) []quiz.Question {
+	scores := make(map[string]int, len(ev.PerQuestion))
+	for _, item := range ev.PerQuestion {
+		scores[item.ID] = item.Score
+	}
+	missed := make([]quiz.Question, 0, len(questions))
+	for _, question := range questions {
+		if scores[question.ID] < 2 {
+			missed = append(missed, question)
+		}
+	}
+	return missed
+}
+
+func mergeAnswers(current, retried []quiz.Answer) []quiz.Answer {
+	replacements := make(map[string]string, len(retried))
+	for _, answer := range retried {
+		replacements[answer.ID] = answer.Text
+	}
+	merged := append([]quiz.Answer(nil), current...)
+	for i := range merged {
+		if text, ok := replacements[merged[i].ID]; ok {
+			merged[i].Text = text
+			delete(replacements, merged[i].ID)
+		}
+	}
+	for _, answer := range retried {
+		if _, ok := replacements[answer.ID]; ok {
+			merged = append(merged, answer)
+			delete(replacements, answer.ID)
+		}
+	}
+	return merged
 }
 
 func timedOut(ctx context.Context, err error) bool {
 	return errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded)
+}
+
+func timeoutSeconds(cfg config.Config) int {
+	if cfg.Quiz.TimeoutSeconds > 0 {
+		return cfg.Quiz.TimeoutSeconds
+	}
+	return 60
 }
 
 func fail(err error) int {

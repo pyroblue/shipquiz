@@ -46,7 +46,9 @@ cp -R .claude/skills/shipquiz .agents/skills/
 
 ## Rules the quiz enforces
 
-- Question count follows the size of the change: 1 trivial, 2 tiny, 3 small, 4–5 medium, 6–7 large. Hard cap is 7.
+- Questions stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs.
+- In the terminal, Ctrl-G shows a reference answer. A blank line submits.
+- Ask one question per meaningful architectural decision. Most quizzes have 1–3 questions. Use 4–5 only when the diff has that many distinct architectural decisions. Hard cap is 5.
 - Pass only when the average score is at least 1.5 and no question scored 0. Scores are 0, 1, or 2.
 - Lockfiles and `skip_paths` in `.shipquiz.toml` skip the quiz. A trivial code change still gets one question.
 - The same diff is cached. A passed diff is not asked again unless the user runs `shipquiz quiz --again`.

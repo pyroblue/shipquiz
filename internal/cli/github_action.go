@@ -16,6 +16,7 @@ import (
 	"github.com/shipquiz/shipquiz/internal/gitx"
 	"github.com/shipquiz/shipquiz/internal/keychain"
 	"github.com/shipquiz/shipquiz/internal/llm"
+	"github.com/shipquiz/shipquiz/internal/ui"
 )
 
 const llmSecret = "SHIPQUIZ_LLM_API_KEY"
@@ -41,6 +42,7 @@ func cmdGitHubAction(args []string) int {
 
 	con := openConsole()
 	defer con.close()
+	ui.Banner(con.out)
 
 	provider, err := askProvider(con, cfg.Provider)
 	if errors.Is(err, errBadProvider) {
@@ -84,10 +86,10 @@ func cmdGitHubAction(args []string) int {
 		})
 		cancel()
 		if smokeErr != nil {
-			fmt.Fprintf(con.out, "Smoke test failed: %v\n", smokeErr)
-			fmt.Fprintln(con.out, "The workflow will still be written.")
+			fmt.Fprintln(con.out, ui.Fail(con.out, "Smoke test failed: ")+smokeErr.Error())
+			ui.Hint(con.out, "The workflow will still be written.")
 		} else {
-			fmt.Fprintln(con.out, "Smoke test ok.")
+			fmt.Fprintln(con.out, ui.Pass(con.out, "Smoke test ok."))
 		}
 	}
 
@@ -97,13 +99,13 @@ func cmdGitHubAction(args []string) int {
 	if err := config.Save(cfg); err != nil {
 		return fail(err)
 	}
-	fmt.Fprintf(con.out, "Saved %s (%s, %s).\n", mustConfigPath(), provider, model)
+	fmt.Fprintf(con.out, "%s  %s\n", ui.Pass(con.out, "Saved"), ui.Muted(con.out, mustConfigPath()+" ("+provider+", "+model+")"))
 
 	wrote := false
 	path := ""
 	root, rootErr := gitx.Root()
 	if rootErr != nil {
-		fmt.Fprintln(con.out, "\nWorkflow")
+		ui.Section(con.out, "Workflow")
 		fmt.Fprint(con.out, action.Workflow(provider, model, baseURL))
 	} else {
 		var err error
@@ -128,12 +130,12 @@ func askProvider(con console, current string) (string, error) {
 	case "xai":
 		def = "4"
 	}
-	fmt.Fprintln(con.out, "\nProvider")
-	fmt.Fprintln(con.out, "  1  anthropic")
-	fmt.Fprintln(con.out, "  2  openai")
-	fmt.Fprintln(con.out, "  3  gemini")
-	fmt.Fprintln(con.out, "  4  xai")
-	choice, err := con.prompt("Provider [" + def + "]: ")
+	ui.Section(con.out, "Provider")
+	ui.Choice(con.out, 1, "anthropic")
+	ui.Choice(con.out, 2, "openai")
+	ui.Choice(con.out, 3, "gemini")
+	ui.Choice(con.out, 4, "xai")
+	choice, err := con.prompt(ui.Ask(con.out, "Provider", def))
 	if err != nil {
 		return "", err
 	}
@@ -159,11 +161,11 @@ func askBaseURL(con console, cfg config.Config, provider string) (string, error)
 	if provider == cfg.Provider {
 		current = cfg.BaseURL
 	}
-	label := "Base URL (blank for the provider default): "
+	def := "blank for the provider default"
 	if current != "" {
-		label = "Base URL [" + current + "]: "
+		def = current
 	}
-	entered, err := con.prompt(label)
+	entered, err := con.prompt(ui.Ask(con.out, "Base URL", def))
 	if err != nil {
 		return "", err
 	}
@@ -216,20 +218,21 @@ func writeWorkflow(con console, root, provider, model, baseURL string) (string, 
 	if err := os.WriteFile(path, []byte(body), 0o644); err != nil {
 		return path, false, err
 	}
-	fmt.Fprintf(con.out, "Wrote %s\n", path)
+	fmt.Fprintf(con.out, "%s  %s\n", ui.Pass(con.out, "Wrote"), ui.Muted(con.out, path))
 	return path, true, nil
 }
 
 func printSecretSteps(con console, path string, wrote bool, secret string) int {
 	repo := githubSlug(originURL())
-	fmt.Fprintln(con.out, "\nRepository secret")
-	fmt.Fprintf(con.out, "  %s\n", llmSecret)
-	fmt.Fprintln(con.out, "  Value: the LLM API key you just confirmed")
+	ui.Section(con.out, "Repository secret")
+	ui.Row(con.out, "name", ui.Stamp(con.out, llmSecret))
+	ui.Row(con.out, "value", "the LLM API key you just confirmed")
 	if wrote {
-		fmt.Fprintf(con.out, "\nThe workflow is %s. The key is not in that file.\n", path)
+		fmt.Fprintln(con.out)
+		ui.Hint(con.out, "The workflow is "+path+". The key is not in that file.")
 	}
-	fmt.Fprintln(con.out, "Require the shipquiz check in branch protection if a failed quiz should block merging.")
-	fmt.Fprintln(con.out, "People reply to the quiz comment in their own words.")
+	ui.Hint(con.out, "Require the shipquiz check in branch protection if a failed quiz should block merging.")
+	ui.Hint(con.out, "People reply to the quiz comment in their own words.")
 
 	if repo == "" {
 		fmt.Fprintf(con.out, "\n  gh secret set %s\n", llmSecret)
@@ -248,7 +251,7 @@ func printSecretSteps(con console, path string, wrote bool, secret string) int {
 		fmt.Fprintf(con.out, "  gh secret set %s --repo %s\n", llmSecret, repo)
 		return 0
 	}
-	fmt.Fprintf(con.out, "Set %s on %s.\n", llmSecret, repo)
+	fmt.Fprintf(con.out, "%s  %s\n", ui.Pass(con.out, "Set"), ui.Muted(con.out, llmSecret+" on "+repo))
 	return 0
 }
 

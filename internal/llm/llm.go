@@ -11,7 +11,6 @@ import (
 	"net/http"
 	"sort"
 	"strings"
-	"time"
 
 	"github.com/shipquiz/shipquiz/internal/version"
 )
@@ -29,6 +28,9 @@ type Client interface {
 	Complete(ctx context.Context, req Request) (string, error)
 	ListModels(ctx context.Context) ([]string, error)
 }
+
+// lowEffort is the quiz default. Providers that reject the field are retried without it.
+const lowEffort = "low"
 
 // New builds a client for provider. baseURL is optional.
 // anthropic expects an origin (https://api.anthropic.com).
@@ -48,24 +50,34 @@ func New(provider, baseURL, apiKey string) (Client, error) {
 		if baseURL == "" {
 			baseURL = "https://api.openai.com/v1"
 		}
-		return &openAIClient{base: strings.TrimRight(baseURL, "/"), key: apiKey, http: newHTTP()}, nil
+		return newOpenAI(baseURL, apiKey), nil
 	case "gemini":
 		if baseURL == "" {
 			baseURL = "https://generativelanguage.googleapis.com/v1beta/openai"
 		}
-		return &openAIClient{base: strings.TrimRight(baseURL, "/"), key: apiKey, http: newHTTP()}, nil
+		return newOpenAI(baseURL, apiKey), nil
 	case "xai":
 		if baseURL == "" {
 			baseURL = "https://api.x.ai/v1"
 		}
-		return &openAIClient{base: strings.TrimRight(baseURL, "/"), key: apiKey, http: newHTTP()}, nil
+		return newOpenAI(baseURL, apiKey), nil
 	default:
 		return nil, fmt.Errorf("unknown provider %q (use anthropic, openai, gemini, or xai)", provider)
 	}
 }
 
+func newOpenAI(baseURL, apiKey string) *openAIClient {
+	return &openAIClient{
+		base:      strings.TrimRight(baseURL, "/"),
+		key:       apiKey,
+		http:      newHTTP(),
+		reasoning: lowEffort,
+	}
+}
+
 func newHTTP() *http.Client {
-	return &http.Client{Timeout: 60 * time.Second}
+	// The request context is the deadline. A client timeout would cut off a longer quiz.
+	return &http.Client{}
 }
 
 type anthropicClient struct {
@@ -75,6 +87,17 @@ type anthropicClient struct {
 }
 
 func (c *anthropicClient) Complete(ctx context.Context, req Request) (string, error) {
+	text, err := c.complete(ctx, req, true)
+	if err == nil {
+		return text, nil
+	}
+	if strings.Contains(err.Error(), "output_config") || strings.Contains(err.Error(), "effort") {
+		return c.complete(ctx, req, false)
+	}
+	return "", err
+}
+
+func (c *anthropicClient) complete(ctx context.Context, req Request, withEffort bool) (string, error) {
 	body := map[string]any{
 		"model":      req.Model,
 		"max_tokens": maxTokens(req.MaxTokens),
@@ -82,6 +105,9 @@ func (c *anthropicClient) Complete(ctx context.Context, req Request) (string, er
 		"messages": []map[string]string{
 			{"role": "user", "content": req.User},
 		},
+	}
+	if withEffort {
+		body["output_config"] = map[string]string{"effort": lowEffort}
 	}
 	var parsed struct {
 		Content []struct {
@@ -150,28 +176,32 @@ func (c *anthropicClient) post(ctx context.Context, url string, body any, out an
 
 func (c *anthropicClient) auth(req *http.Request) {
 	req.Header.Set("x-api-key", c.key)
-	req.Header.Set("anthropic-version", "2023-06-01")
+	req.Header.Set("anthropic-version", "2026-10-21")
 	req.Header.Set("user-agent", "shipquiz/"+version.Current)
 }
 
 type openAIClient struct {
-	base string
-	key  string
-	http *http.Client
+	base      string
+	key       string
+	http      *http.Client
+	reasoning string
 }
 
 func (c *openAIClient) Complete(ctx context.Context, req Request) (string, error) {
-	text, err := c.complete(ctx, req, true)
+	text, err := c.complete(ctx, req, true, true)
 	if err == nil {
 		return text, nil
 	}
-	if strings.Contains(err.Error(), "max_completion_tokens") {
-		return c.complete(ctx, req, false)
+	msg := err.Error()
+	dropTokens := strings.Contains(msg, "max_completion_tokens")
+	dropReason := c.reasoning != "" && strings.Contains(msg, "reasoning_effort")
+	if dropTokens || dropReason {
+		return c.complete(ctx, req, !dropTokens, !dropReason)
 	}
 	return "", err
 }
 
-func (c *openAIClient) complete(ctx context.Context, req Request, completionTokens bool) (string, error) {
+func (c *openAIClient) complete(ctx context.Context, req Request, completionTokens, withReasoning bool) (string, error) {
 	body := map[string]any{
 		"model": req.Model,
 		"messages": []map[string]string{
@@ -183,6 +213,9 @@ func (c *openAIClient) complete(ctx context.Context, req Request, completionToke
 		body["max_completion_tokens"] = maxTokens(req.MaxTokens)
 	} else {
 		body["max_tokens"] = maxTokens(req.MaxTokens)
+	}
+	if withReasoning && c.reasoning != "" {
+		body["reasoning_effort"] = c.reasoning
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {

@@ -41,9 +41,9 @@ func Default() Config {
 		Model:    "claude-sonnet-4-5",
 		Quiz: Quiz{
 			MinQuestions:   1,
-			MaxQuestions:   7,
+			MaxQuestions:   5,
 			PassingAverage: 1.5,
-			TimeoutSeconds: 20,
+			TimeoutSeconds: 60,
 		},
 		Hooks:         Hooks{PrePush: true},
 		QuestionStyle: "default",
@@ -223,8 +223,8 @@ func fillMissing(cfg *Config, meta toml.MetaData) {
 	if cfg.QuestionStyle == "" {
 		cfg.QuestionStyle = d.QuestionStyle
 	}
-	if cfg.Quiz.MaxQuestions > 7 {
-		cfg.Quiz.MaxQuestions = 7
+	if cfg.Quiz.MaxQuestions > 5 {
+		cfg.Quiz.MaxQuestions = 5
 	}
 	if cfg.Quiz.MinQuestions < 1 {
 		cfg.Quiz.MinQuestions = 1

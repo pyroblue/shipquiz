@@ -38,9 +38,12 @@ func TestNormalizeAssignsIDsAndCap(t *testing.T) {
 			{Question: " one "},
 			{Question: "two"},
 			{Question: "three"},
+			{Question: "four"},
+			{Question: "five"},
+			{Question: "six"},
 		},
-	}, 1, 2)
-	if len(g.Questions) != 2 {
+	}, 1, 9)
+	if len(g.Questions) != 5 {
 		t.Fatalf("len = %d", len(g.Questions))
 	}
 	if g.Questions[0].ID != "q1" || g.Questions[0].Question != "one" {

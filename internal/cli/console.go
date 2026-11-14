@@ -7,6 +7,8 @@ import (
 	"os"
 
 	"golang.org/x/term"
+
+	"github.com/shipquiz/shipquiz/internal/ui"
 )
 
 type console struct {
@@ -44,7 +46,7 @@ func (c console) confirm(label string, def bool) (bool, error) {
 	if def {
 		suffix = " [Y/n] "
 	}
-	answer, err := c.prompt(label + suffix)
+	answer, err := c.prompt(ui.Stamp(c.out, label) + ui.Muted(c.out, suffix))
 	if answer == "" {
 		return def, err
 	}
@@ -57,7 +59,7 @@ func (c console) confirm(label string, def bool) (bool, error) {
 }
 
 func (c console) secret(label string) (string, error) {
-	fmt.Fprint(c.out, label)
+	fmt.Fprint(c.out, ui.Stamp(c.out, label))
 	if c.file == nil || !term.IsTerminal(int(c.file.Fd())) {
 		fmt.Fprintln(c.out)
 		return "", fmt.Errorf("setup needs a terminal to read the API key")

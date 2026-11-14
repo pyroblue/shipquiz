@@ -8,7 +8,7 @@ import (
 
 const generationSystem = "You output only JSON. No markdown fences, no preamble."
 
-const generationTemplate = `You are an expert software architect. Generate questions that test whether the developer deeply understands the architectural implications of this diff.
+const generationTemplate = `You are an expert software architect. Generate questions that test whether the developer understands the important architectural decisions in this diff.
 
 First classify the change:
 - Trivial: mechanical, tests/docs/config/formatting, or < ~15 substantive lines
@@ -17,23 +17,49 @@ First classify the change:
 - Medium: multiple components or new abstractions
 - Large: new subsystem, redesign, or cross-cutting
 
-Generate this many questions:
+Question limits:
 - Trivial → 1
-- Tiny → 2
-- Small → 3
-- Medium → 4 or 5
-- Large → 6 or 7
+- Tiny → up to 2
+- Small → up to 3
+- Medium → usually up to 3; 4 only for four distinct decisions
+- Large → usually up to 3; 4 or 5 only for that many distinct decisions
+
+These are maximums, not targets. Ask one question per distinct, meaningful
+architectural decision. Return fewer questions when the diff has fewer decisions.
+Diff size alone never justifies more questions.
+
+Select questions:
+1. Privately identify the architectural decisions in the diff.
+2. Rank them by user impact, security, reliability, and long-term maintenance.
+3. Group related edits into one decision.
+4. Discard weak candidates. Do not output this analysis.
+
+Importance gate:
+- A question must explain user-visible behavior, a system boundary, a security or reliability guarantee, or a long-lived design trade-off.
+- Ask what a maintainer should understand months later, not how this patch happens to implement it today.
+- If a candidate does not pass this gate, omit it.
+
+Clarity gate:
+- Write for a developer who understands the product but has not memorized this patch.
+- Name the subject in plain language and ask one thing.
+- Keep each question to one sentence and roughly 18 words or fewer.
+- Avoid “why X but Y?” constructions.
+- Avoid implementation verbs such as strip, marshal, render, retry, or pass.
+- Avoid package, function, type, field, parameter, provider, and keyboard-shortcut names unless essential to the architecture.
+- Reject questions answered by merely restating the diff or a product requirement.
+- Reject questions about quiz mechanics unless they define important user behavior.
+
+References:
+- reference is the direct answer in one short, plain-language sentence.
+- reference must explain the architectural point, not paraphrase the question.
+- reference is hidden until the developer asks.
+- The developer should be able to answer in one sentence.
 
 Rules:
-- Every question must be specific to this diff.
-- Focus on data flow, invariants, failure modes, boundaries, and design trade-offs.
-- Answerable in 1–3 sentences.
-- No syntax/style questions.
-- Prefer “what happens if…”, “why here instead of there”, “walk through…”.
 - Produce between %d and %d questions. Never exceed %d. Never return zero questions.
 - Question style: %s.
-- If the style is failure-modes, every question asks about a failure mode or a broken invariant.
-- If the style is data-flow, every question asks the developer to walk data across a boundary in this diff.
+- If the style is failure-modes, ask about an important failure and the guarantee that contains it.
+- If the style is data-flow, ask about an important system boundary that data crosses.
 - If the style is default, follow the rules above as written.
 - Output only JSON:
 
@@ -41,7 +67,7 @@ Rules:
   "size": "trivial|tiny|small|medium|large",
   "summary": "one sentence",
   "questions": [
-    {"id": "q1", "question": "...", "why_it_matters": "..."}
+    {"id": "q1", "question": "...", "reference": "..."}
   ]
 }
 
@@ -55,6 +81,8 @@ Context:
 const evaluationSystem = "You output only JSON. No markdown fences, no preamble. Score only from the diff and the answers."
 
 const evaluationTemplate = `Score the developer’s answers. Be strict but fair.
+
+Judge architectural understanding. A short answer that names the right piece and its role is a 2.
 
 Per question: 0 (wrong/missing), 1 (partial), 2 (clear understanding).
 

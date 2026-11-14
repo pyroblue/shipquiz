@@ -77,10 +77,10 @@ func Interpret(ctx context.Context, client llm.Client, model string, questions [
 	return NormalizeReply(reply, questions), nil
 }
 
-// WithTimeout returns a context limited to seconds, or 20 when seconds is unset.
+// WithTimeout returns a context limited to seconds, or 60 when seconds is unset.
 func WithTimeout(parent context.Context, seconds int) (context.Context, context.CancelFunc) {
 	if seconds <= 0 {
-		seconds = 20
+		seconds = 60
 	}
 	return context.WithTimeout(parent, time.Duration(seconds)*time.Second)
 }
