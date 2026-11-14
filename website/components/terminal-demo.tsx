@@ -40,6 +40,10 @@ type ChatLine = {
   pause?: number;
   /** The quiz passed, so the bubble uses the stamp. */
   pass?: boolean;
+  /** Numbered choices inside an agent question. */
+  choices?: string[];
+  /** The 1-based choice that gets clicked. */
+  choice?: number;
 };
 
 /** A chat where the agent quizzes before it calls the change done. */
@@ -48,10 +52,11 @@ const skillChat: ChatLine[] = [
   { from: "agent", text: "One question before I call it done.", pause: 700 },
   {
     from: "agent",
-    text: "What sits between the browser and a route?\n\n1  The database\n2  The request handler\n3  The page component",
-    pause: 1100,
+    text: "What sits between the browser and a route?",
+    choices: ["The database", "The request handler", "The page component"],
+    choice: 2,
+    pause: 700,
   },
-  { from: "you", text: "The request handler", typed: true, pause: 500 },
   { from: "agent", text: "Correct. The handler owns the session boundary.", pause: 700 },
   { from: "agent", text: "Cleared to ship.", pass: true, pause: 400 },
 ];
@@ -179,21 +184,41 @@ export function TerminalDemo() {
 /** One message in the skill chat. `typing` draws the cursor on a partial line. */
 function ChatBubble({ message, typing }: { message: ChatLine; typing: boolean }) {
   const you = message.from === "you";
+  const shell = you
+    ? "bg-ink text-paper"
+    : message.pass
+      ? "border border-stamp bg-sky font-medium text-stamp"
+      : "border border-line bg-paper text-ink";
+
   return (
     <div className={`flex flex-col gap-1 ${you ? "items-end" : "items-start"}`}>
       <p className="text-[11px] tracking-[0.08em] text-muted uppercase">{you ? "You" : "Agent"}</p>
-      <p
-        className={`max-w-[85%] px-3 py-2 text-sm leading-relaxed whitespace-pre-line ${
-          you
-            ? "bg-ink text-paper"
-            : message.pass
-              ? "border border-stamp bg-sky font-medium text-stamp"
-              : "border border-line bg-paper text-ink"
-        }`}
-      >
-        {message.text}
-        {typing ? <span className="term-cursor" /> : null}
-      </p>
+      <div className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm leading-relaxed ${shell}`}>
+        <p>
+          {message.text}
+          {typing ? <span className="term-cursor" /> : null}
+        </p>
+        {message.choices ? (
+          <div className="mt-2 space-y-1.5">
+            {message.choices.map((choice, index) => {
+              const picked = message.choice === index + 1;
+              return (
+                <p
+                  key={choice}
+                  className={`rounded-xl border-2 px-3 py-1.5 ${
+                    picked
+                      ? "border-stamp bg-sky font-bold text-ink"
+                      : "border-line bg-card text-ink"
+                  }`}
+                >
+                  <span className={`mr-2 ${picked ? "text-stamp" : "text-mark"}`}>{index + 1}</span>
+                  {choice}
+                </p>
+              );
+            })}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
@@ -234,7 +259,15 @@ export function SkillDemo() {
             }
           }
           if (cancelled) return;
-          shown.push(message);
+          if (message.choices && message.choice) {
+            shown.push({ ...message, choice: undefined });
+            setMessages([...shown]);
+            await wait(900, timers);
+            if (cancelled) return;
+            shown[shown.length - 1] = message;
+          } else {
+            shown.push(message);
+          }
           setMessages([...shown]);
           await wait(message.pause ?? 400, timers);
         }
