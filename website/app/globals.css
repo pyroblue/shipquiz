@@ -67,6 +67,12 @@ body::before {
   color: var(--ink);
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* Clear the sticky header for hashed sections and the action card. */
 section[id],
 article[id] {
@@ -112,8 +118,8 @@ dt.font-mono,
 
 /* Hard offset, no blur, so the white word stays readable on the hull. */
 .ship-title {
-  /* SHIPQUIZ in Galley at this tracking is about 5em wide. */
-  font-size: calc(85cqw / 5);
+  /* SHIPQUIZ in Galley at this tracking is about 5em wide. Phones fill more of the hull. */
+  font-size: calc(96cqw / 5);
   font-weight: 700;
   font-synthesis: weight;
   letter-spacing: -0.07em;
@@ -124,6 +130,12 @@ dt.font-mono,
   text-transform: uppercase;
   /* Ink speckles on the hero word only. */
   filter: url(#hero-distress);
+}
+
+@media (min-width: 640px) {
+  .ship-title {
+    font-size: calc(85cqw / 5);
+  }
 }
 
 /* Torn page edge. The fade follows a ragged line. */

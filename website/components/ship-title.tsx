@@ -5,14 +5,16 @@ import { useEffect, useLayoutEffect, useRef } from "react";
 /** Runs before paint in the browser, and after render on the server. */
 const useIsoLayoutEffect = typeof window === "undefined" ? useEffect : useLayoutEffect;
 
-/** The hero word fills most of the content well. */
-const heroScale = 0.85;
+/** Desktop fill. Phones get a wider word so it reads on the hull. */
+const desktopScale = 0.85;
+const phoneScale = 0.96;
 
 /** Set the font size so the glyphs fill most of the well's inner width. */
 function fitTitle(el: HTMLParagraphElement, well: HTMLElement) {
   const style = getComputedStyle(well);
   const padding = parseFloat(style.paddingLeft) + parseFloat(style.paddingRight);
-  const target = (well.clientWidth - padding) * heroScale;
+  const scale = well.clientWidth < 640 ? phoneScale : desktopScale;
+  const target = (well.clientWidth - padding) * scale;
   const current = parseFloat(getComputedStyle(el).fontSize);
   const glyphs = el.scrollWidth;
   if (target <= 0 || current <= 0 || glyphs <= 0) return;

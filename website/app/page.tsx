@@ -20,7 +20,7 @@ export default function HomePage() {
           <ShipLoop />
         </div>
         <div className="pointer-events-none absolute inset-0 flex items-center">
-          <div className="ship-well mx-auto flex w-full max-w-6xl justify-center px-5">
+          <div className="ship-well mx-auto flex w-full max-w-6xl justify-center px-2 sm:px-5">
             <ShipTitle />
           </div>
         </div>
@@ -28,10 +28,10 @@ export default function HomePage() {
       <section className="mx-auto grid min-w-0 max-w-6xl gap-12 px-5 py-14 lg:grid-cols-[1.1fr_0.9fr] lg:items-center lg:py-20">
         <div className="max-w-xl">
           <h1 className="font-serif leading-tight text-ink">
-            <span className="block text-4xl tracking-tighter sm:text-5xl sm:whitespace-nowrap uppercase">
+            <span className="block text-[1.85rem] tracking-tighter sm:text-5xl sm:whitespace-nowrap uppercase">
               You&apos;re the captain.
             </span>
-            <span className="mt-2 block text-4xl tracking-tighter sm:text-[2.4rem] sm:whitespace-nowrap normal-case">
+            <span className="mt-2 block text-[1.5rem] tracking-tighter sm:text-[2.4rem] sm:whitespace-nowrap normal-case">
               Ship only what you can{" "}
               <span className="text-stamp">explain.</span>
             </span>
