@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 
 type Line = {
   text: string;
@@ -17,43 +17,52 @@ const pushScript: Line[] = [
   { text: "The session check moved into the handler.", pause: 550 },
   { text: "", pause: 180 },
   { text: "1  What sits between the browser and a route?", pause: 650 },
+  { text: "   1  The database", pause: 120 },
+  { text: "   2  The request handler", pause: 120 },
+  { text: "   3  The page component", pause: 300 },
+  { text: "   press 1, 2, or 3 · ? reveals the answer", pause: 350 },
+  { text: "   > 2", typed: true, pause: 350 },
+  { text: "   ✓ correct", pause: 250 },
+  { text: "   The handler owns the session boundary.", pause: 500 },
   { text: "", pause: 200 },
-  { text: "   > the handler reads the session,", typed: true, pause: 180 },
-  { text: "   > then hands the request to the route", typed: true, pause: 500 },
-  { text: "   >", pause: 450 },
-  { text: "", pause: 200 },
-  { text: "pass  2.0 / 2", pause: 350 },
-  { text: "You named the handler, and that it reads the session.", pause: 500 },
+  { text: "⚓ PASS  cleared to ship! 🎉  2.0 / 2", pause: 500 },
   { text: "", pause: 180 },
   { text: "To github.com:acme/app.git", pause: 160 },
   { text: "   a1b2c3d..e4f5g6h  main -> main", pause: 2200 },
 ];
 
-/** Drop the skill where Claude Code and Cursor both look, then run the quiz. */
-const skillScript: Line[] = [
-  { text: "$ mkdir -p .claude/skills/shipquiz .agents/skills", typed: true, pause: 350 },
-  { text: "$ curl -fsSL https://shipquiz.com/skill/SKILL.md \\", typed: true, pause: 80 },
-  { text: "    -o .claude/skills/shipquiz/SKILL.md", typed: true, pause: 280 },
-  { text: "$ cp -R .claude/skills/shipquiz .agents/skills/", typed: true, pause: 450 },
-  { text: "", pause: 200 },
-  { text: "skill ready", pause: 550 },
-  { text: "", pause: 180 },
-  { text: "$ shipquiz quiz", typed: true, pause: 400 },
-  { text: "small · 1 question", pause: 280 },
-  { text: "1  What sits between the browser and a route?", pause: 650 },
-  { text: "", pause: 180 },
-  { text: "   > the handler reads the session,", typed: true, pause: 160 },
-  { text: "   > then hands the request to the route", typed: true, pause: 450 },
-  { text: "", pause: 200 },
-  { text: "pass  2.0 / 2", pause: 350 },
-  { text: "The agent is told to run this before it calls the change done.", pause: 2200 },
+type ChatLine = {
+  from: "you" | "agent";
+  text: string;
+  /** Type this message one character at a time. */
+  typed?: boolean;
+  /** Wait after the message is on screen, in milliseconds. */
+  pause?: number;
+  /** The quiz passed, so the bubble uses the stamp. */
+  pass?: boolean;
+};
+
+/** A chat where the agent quizzes before it calls the change done. */
+const skillChat: ChatLine[] = [
+  { from: "you", text: "Ship this change.", typed: true, pause: 500 },
+  { from: "agent", text: "One question before I call it done.", pause: 700 },
+  {
+    from: "agent",
+    text: "What sits between the browser and a route?\n\n1  The database\n2  The request handler\n3  The page component",
+    pause: 1100,
+  },
+  { from: "you", text: "The request handler", typed: true, pause: 500 },
+  { from: "agent", text: "Correct. The handler owns the session boundary.", pause: 700 },
+  { from: "agent", text: "Cleared to ship.", pass: true, pause: 400 },
 ];
 
 const typeMs = 28;
+/** How long the finished transcript stays before the loop starts over. */
+const holdMs = 5000;
 
-/** The prompt and the pass line use the accent. Everything else stays ink. */
+/** Commands and successful quiz lines use the accent. */
 function lineColor(line: string) {
-  if (line.startsWith("$") || line.startsWith("pass")) return "text-stamp";
+  if (line.startsWith("$") || line.startsWith("⚓") || line.includes("✓")) return "text-stamp";
   return undefined;
 }
 
@@ -64,9 +73,8 @@ function wait(ms: number, timers: number[]) {
   });
 }
 
-/** A looping terminal. `label` is the bar; `script` is what gets typed. */
-function TerminalPlay({ script, label }: { script: Line[]; label: string }) {
-  const [lines, setLines] = useState<string[]>([]);
+/** Whether the user asked for less motion. */
+function useReducedMotion() {
   const [reduced, setReduced] = useState(false);
 
   useEffect(() => {
@@ -77,11 +85,37 @@ function TerminalPlay({ script, label }: { script: Line[]; label: string }) {
     return () => media.removeEventListener("change", apply);
   }, []);
 
+  return reduced;
+}
+
+/** True while the element is far enough into the viewport to play. */
+function useInView(ref: RefObject<HTMLElement | null>) {
+  const [visible, setVisible] = useState(false);
+
   useEffect(() => {
-    if (reduced) {
-      setLines(script.map((line) => line.text));
-      return;
-    }
+    const node = ref.current;
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      ([entry]) => setVisible(entry.isIntersecting),
+      { threshold: 0.35 },
+    );
+    observer.observe(node);
+    return () => observer.disconnect();
+  }, [ref]);
+
+  return visible;
+}
+
+/** A looping terminal. `label` is the bar; `script` is what gets typed. */
+function TerminalPlay({ script, label }: { script: Line[]; label: string }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [played, setLines] = useState<string[] | null>(null);
+  const reduced = useReducedMotion();
+  const visible = useInView(rootRef);
+  const lines = reduced ? script.map((line) => line.text) : (played ?? []);
+
+  useEffect(() => {
+    if (reduced || !visible) return;
 
     let cancelled = false;
     const timers: number[] = [];
@@ -105,6 +139,7 @@ function TerminalPlay({ script, label }: { script: Line[]; label: string }) {
           setLines([...shown]);
           await wait(line.pause ?? 160, timers);
         }
+        await wait(holdMs, timers);
       }
     }
 
@@ -113,10 +148,14 @@ function TerminalPlay({ script, label }: { script: Line[]; label: string }) {
       cancelled = true;
       for (const id of timers) window.clearTimeout(id);
     };
-  }, [reduced, script]);
+  }, [reduced, script, visible]);
 
   return (
-    <div className="border border-line border-t-[3px] border-t-mark bg-card" aria-hidden="true">
+    <div
+      ref={rootRef}
+      className="border border-line border-t-[3px] border-t-mark bg-card"
+      aria-hidden="true"
+    >
       <div className="bg-ink px-4 py-2 text-[11px] font-bold tracking-[0.07em] text-white uppercase">
         {label}
       </div>
@@ -137,7 +176,101 @@ export function TerminalDemo() {
   return <TerminalPlay label="terminal" script={pushScript} />;
 }
 
-/** A looping terminal: add the skill, then the agent runs the quiz. */
+/** One message in the skill chat. `typing` draws the cursor on a partial line. */
+function ChatBubble({ message, typing }: { message: ChatLine; typing: boolean }) {
+  const you = message.from === "you";
+  return (
+    <div className={`flex flex-col gap-1 ${you ? "items-end" : "items-start"}`}>
+      <p className="text-[11px] tracking-[0.08em] text-muted uppercase">{you ? "You" : "Agent"}</p>
+      <p
+        className={`max-w-[85%] px-3 py-2 text-sm leading-relaxed whitespace-pre-line ${
+          you
+            ? "bg-ink text-paper"
+            : message.pass
+              ? "border border-stamp bg-sky font-medium text-stamp"
+              : "border border-line bg-paper text-ink"
+        }`}
+      >
+        {message.text}
+        {typing ? <span className="term-cursor" /> : null}
+      </p>
+    </div>
+  );
+}
+
+/** A looping chat: you ask to ship, the agent quizzes, then clears it. */
 export function SkillDemo() {
-  return <TerminalPlay label="skill" script={skillScript} />;
+  const rootRef = useRef<HTMLDivElement>(null);
+  const logRef = useRef<HTMLDivElement>(null);
+  const [played, setMessages] = useState<ChatLine[] | null>(null);
+  const reduced = useReducedMotion();
+  const visible = useInView(rootRef);
+  const messages = reduced ? skillChat : (played ?? []);
+
+  useEffect(() => {
+    const log = logRef.current;
+    if (!log) return;
+    log.scrollTop = log.scrollHeight;
+  }, [messages]);
+
+  useEffect(() => {
+    if (reduced || !visible) return;
+
+    let cancelled = false;
+    const timers: number[] = [];
+
+    async function play() {
+      while (!cancelled) {
+        const shown: ChatLine[] = [];
+        setMessages([]);
+        await wait(300, timers);
+        for (const message of skillChat) {
+          if (cancelled) return;
+          if (message.typed) {
+            for (let i = 1; i <= message.text.length; i++) {
+              if (cancelled) return;
+              setMessages([...shown, { ...message, text: message.text.slice(0, i) }]);
+              await wait(typeMs, timers);
+            }
+          }
+          if (cancelled) return;
+          shown.push(message);
+          setMessages([...shown]);
+          await wait(message.pause ?? 400, timers);
+        }
+        await wait(holdMs, timers);
+      }
+    }
+
+    void play();
+    return () => {
+      cancelled = true;
+      for (const id of timers) window.clearTimeout(id);
+    };
+  }, [reduced, visible]);
+
+  return (
+    <div
+      ref={rootRef}
+      className="border border-line border-t-[3px] border-t-mark bg-card"
+      aria-hidden="true"
+    >
+      <div className="bg-ink px-4 py-2 text-[11px] font-bold tracking-[0.07em] text-white uppercase">
+        chat
+      </div>
+      <div ref={logRef} className="flex h-[28rem] flex-col gap-3 overflow-y-auto px-4 py-4">
+        {messages.map((message, index) => (
+          <ChatBubble
+            key={`${message.from}-${index}`}
+            message={message}
+            typing={
+              !reduced &&
+              index === messages.length - 1 &&
+              message.text !== skillChat[index]?.text
+            }
+          />
+        ))}
+      </div>
+    </div>
+  );
 }

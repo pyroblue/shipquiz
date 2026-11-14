@@ -6,22 +6,30 @@ import { ShipWheel } from "@/components/ship-wheel";
 const deck = [
   {
     question: "What sits between the browser and a route?",
-    answer: "the handler reads the session, then hands the request to the route",
+    choices: ["The database", "The request handler", "The page component"],
+    correct: 2,
   },
   {
     question: "Who decides whether a request is signed in?",
-    answer: "the handler. a route receives whatever the handler already loaded",
+    choices: ["The request handler", "The route", "The browser"],
+    correct: 1,
   },
   {
     question: "How do public pages and signed-in routes fit together?",
-    answer: "public pages stay outside the handler. signed-in routes go through it",
+    choices: [
+      "Every page uses the same gate",
+      "Routes decide after rendering",
+      "Only signed-in routes cross the auth boundary",
+    ],
+    correct: 3,
   },
 ];
 
-const typeMs = 22;
-
-/** How long Correct! stays up before the next card flips in. */
+/** How long the stamp stays up before the next card flips in. */
 const holdMs = 2800;
+const chooseMs = 1100;
+/** Delay after the choice lands before the stamp appears. */
+const markMs = 500;
 
 /** Wait, and remember the timer so it can be cleared. */
 function wait(ms: number, timers: number[]) {
@@ -30,65 +38,84 @@ function wait(ms: number, timers: number[]) {
   });
 }
 
-/** A green check and the word Correct! */
+/** A white check, drawn heavy enough to read inside the stamp. */
+function CheckMark() {
+  return (
+    <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
+      <path
+        d="M3 8.2 6.2 11.5 13 4.5"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** The stamp that lands on the right choice. */
 function CorrectMark() {
   return (
-    <p className="quiz-correct inline-flex items-center gap-1.5 text-sm font-medium">
-      <svg viewBox="0 0 16 16" className="h-4 w-4" aria-hidden="true">
-        <path
-          d="M3 8.2 6.2 11.5 13 4.5"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        />
-      </svg>
-      Correct!
+    <p className="inline-flex items-center gap-2 text-sm font-bold tracking-[0.08em] text-stamp uppercase">
+      <span className="inline-flex h-7 w-7 items-center justify-center bg-stamp text-paper">
+        <CheckMark />
+      </span>
+      Correct
     </p>
   );
 }
 
-/** One card: the question, the typed answer, and Correct! once it lands. */
+/** One card: the question, three choices, and the selected answer. */
 function QuizCard({
   example,
   index,
-  answer,
-  showVerdict,
-  cursor,
+  selected,
+  marked,
 }: {
   example: (typeof deck)[number];
   index: number;
-  answer: string;
-  showVerdict: boolean;
-  cursor: boolean;
+  selected: number | null;
+  marked: boolean;
 }) {
   return (
     <div className="quiz-card h-full p-6 text-ink">
       <p className="text-xs tracking-[0.07em] text-muted">
         Question {index + 1}/{deck.length}
       </p>
-      <p className="mt-3 font-sans text-2xl leading-snug">{example.question}</p>
-      <p className="mt-5 grid border-t border-line pt-3 font-mono text-sm">
-        <span className="invisible col-start-1 row-start-1">&gt; {example.answer}</span>
-        <span className="col-start-1 row-start-1">
-          &gt; {answer}
-          {cursor ? <span className="term-cursor text-mark" /> : null}
-        </span>
-      </p>
-      <div className={`mt-4 ${showVerdict ? "" : "invisible"}`}>
-        <CorrectMark />
+      <p className="mt-3 min-h-[4.5rem] font-sans text-2xl leading-snug">{example.question}</p>
+      <div className="mt-5 space-y-2 font-mono text-sm">
+        {example.choices.map((choice, choiceIndex) => {
+          const number = choiceIndex + 1;
+          const active = selected === number;
+          return (
+            <p
+              key={choice}
+              className={`flex min-h-16 items-center rounded-sm border-2 px-3 py-2 transition-colors ${
+                active ? "border-stamp bg-sky font-bold text-ink" : "border-line text-muted"
+              }`}
+            >
+              <span className={`mr-2 ${active ? "text-stamp" : "text-mark"}`}>{number}</span>
+              {choice}
+            </p>
+          );
+        })}
+      </div>
+      <div className="mt-4">
+        <div className={marked ? "quiz-stamp-in" : "invisible"}>
+          <CorrectMark />
+        </div>
       </div>
     </div>
   );
 }
 
-/** A paper stack that types an answer, shows Correct!, then flips to the next. */
+/** A paper stack that selects an answer, shows Correct!, then flips. */
 export function QuizStack() {
   const [reduced, setReduced] = useState(false);
   const [index, setIndex] = useState(0);
-  const [typed, setTyped] = useState("");
-  const [phase, setPhase] = useState<"type" | "hold">("type");
+  const [selected, setSelected] = useState<number | null>(null);
+  const [marked, setMarked] = useState(false);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -107,17 +134,15 @@ export function QuizStack() {
     async function play() {
       let card = 0;
       while (!cancelled) {
-        const answer = deck[card].answer;
         setIndex(card);
-        setPhase("type");
-        setTyped("");
-        for (let i = 1; i <= answer.length; i++) {
-          if (cancelled) return;
-          setTyped(answer.slice(0, i));
-          await wait(typeMs, timers);
-        }
+        setSelected(null);
+        setMarked(false);
+        await wait(chooseMs, timers);
         if (cancelled) return;
-        setPhase("hold");
+        setSelected(deck[card].correct);
+        await wait(markMs, timers);
+        if (cancelled) return;
+        setMarked(true);
         await wait(holdMs, timers);
         if (cancelled) return;
         card = (card + 1) % deck.length;
@@ -139,9 +164,8 @@ export function QuizStack() {
             key={example.question}
             example={example}
             index={card}
-            answer={example.answer}
-            showVerdict
-            cursor={false}
+            selected={example.correct}
+            marked
           />
         ))}
         <ShipWheel />
@@ -165,9 +189,8 @@ export function QuizStack() {
                 <QuizCard
                   example={example}
                   index={card}
-                  answer={active ? typed : example.answer}
-                  showVerdict={active ? phase === "hold" : true}
-                  cursor={active && phase === "type"}
+                  selected={active ? selected : example.correct}
+                  marked={active && marked}
                 />
               </div>
             );

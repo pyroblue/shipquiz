@@ -63,6 +63,7 @@ export function SiteHeader() {
               {link.label}
             </NavLink>
           ))}
+          <RepoLink />
         </nav>
       </div>
       {open ? (
@@ -81,9 +82,33 @@ export function SiteHeader() {
               {link.label}
             </NavLink>
           ))}
+          <RepoLink stacked onNavigate={closeMenu} />
         </nav>
       ) : null}
     </header>
+  );
+}
+
+/** The source repository. It leaves the site, so it skips the in-page scroll. */
+function RepoLink({
+  stacked = false,
+  onNavigate,
+}: {
+  stacked?: boolean;
+  onNavigate?: () => void;
+}) {
+  return (
+    <a
+      href="https://github.com/pyroblue/shipquiz"
+      onClick={onNavigate}
+      className={
+        stacked
+          ? "block py-3 text-base uppercase tracking-[0.06em] text-sky"
+          : "text-sky hover:text-paper"
+      }
+    >
+      GitHub
+    </a>
   );
 }
 

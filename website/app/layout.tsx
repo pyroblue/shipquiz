@@ -25,7 +25,7 @@ const typewriter = Special_Elite({
 });
 
 const description =
-  "You're the captain. shipquiz asks a few questions about your change and blocks git push until you can explain it. Your model, your key. The diff never goes to a shipquiz server.";
+  "You're the captain. shipquiz asks a few questions about your change. It can block git push, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand the architecture. Your model, your key. The diff never goes to a shipquiz server.";
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://shipquiz.com"),

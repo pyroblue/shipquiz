@@ -144,8 +144,9 @@ export default function DocsPage() {
             <li>Set <code className="font-mono text-ink">hooks.pre_push</code> to false to leave the hook installed but skip the quiz.</li>
           </ul>
           <p className="leading-relaxed text-muted">
-            You answer in the terminal, one question at a time. A blank line submits the answer.
-            If you fail and try the same diff again, shipquiz reuses the questions and only calls the model to grade.
+            You answer in the terminal by pressing 1, 2, or 3. The CLI immediately explains the answer and scores it
+            locally. Press <code className="font-mono text-ink">?</code> to reveal the answer and count that attempt as
+            incorrect.
           </p>
         </section>
 
@@ -158,12 +159,12 @@ export default function DocsPage() {
             The diff is sent to your model provider, not to shipquiz.
           </p>
           <p className="leading-relaxed text-muted">
-            Reply in the thread in your own words. The model matches that reply to each question.
+            Reply with the selected numbers in question order, such as <code className="font-mono text-ink">2, 1, 3</code>.
             A comment that is not an answer is left alone.
           </p>
           <CodeBlock
             label="comment reply"
-            code={`The token is checked in the handler, so a new route that skips it is public.\nA cache miss stamps the origin because the lock is process-local.`}
+            code={`2, 1, 3`}
           />
           <p className="leading-relaxed text-muted">
             When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed.
@@ -197,15 +198,14 @@ export default function DocsPage() {
         <section id="scoring" className="space-y-4">
           <h2 className="font-serif text-3xl">Scoring</h2>
           <p className="leading-relaxed text-muted">
-            Each answer is 0 (wrong or missing), 1 (partial), or 2 (clear). The quiz passes only when the average is at least{" "}
-            <code className="font-mono text-ink">passing_average</code> (default 1.5) and no question scored 0.
-            shipquiz checks this itself after the model replies, so one wrong answer still fails the quiz.
+            Each terminal choice is 0 (incorrect) or 2 (correct). The CLI scores choices locally, so grading is
+            immediate and deterministic. Every question must be correct to pass.
           </p>
           <p className="leading-relaxed text-muted">
             Questions have to be about this diff. They stay at the system and product level: purpose, ownership,
             boundaries, guarantees, failure behavior, and major trade-offs. Most quizzes have 1–3 questions. Diffs
-            with four or five distinct architectural decisions can have 4–5. Ctrl-G shows a reference answer. A blank
-            line submits. After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1.
+            with four or five distinct architectural decisions can have 4–5. Each question has one correct choice and
+            two plausible misconceptions. After a failed quiz, shipquiz offers to retake only the incorrect questions.
             The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches{" "}
             <code className="font-mono text-ink">skip_paths</code>.
           </p>

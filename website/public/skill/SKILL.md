@@ -34,7 +34,7 @@ GitHub Action (pull request gate):
 shipquiz github-action
 ```
 
-The command asks for the provider, model, and LLM API key, writes `.github/workflows/shipquiz.yml`, and tells you to set the repository secret `SHIPQUIZ_LLM_API_KEY`. That secret is the model provider key. The key is not written into the workflow. Require the `shipquiz` check if a failed quiz should block merging. Reviewers reply to the quiz comment in their own words.
+The command asks for the provider, model, and LLM API key, writes `.github/workflows/shipquiz.yml`, and tells you to set the repository secret `SHIPQUIZ_LLM_API_KEY`. That secret is the model provider key. The key is not written into the workflow. Require the `shipquiz` check if a failed quiz should block merging. Reviewers reply with selected choice numbers in question order.
 
 Agent skill (this file), from the repository root. Claude Code reads `.claude/skills`. Cursor reads that folder and `.agents/skills`.
 
@@ -47,7 +47,7 @@ cp -R .claude/skills/shipquiz .agents/skills/
 ## Rules the quiz enforces
 
 - Questions stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs.
-- In the terminal, Ctrl-G shows a reference answer. A blank line submits.
+- In the terminal, press 1, 2, or 3. Feedback is immediate. `?` reveals the answer and counts as incorrect.
 - Ask one question per meaningful architectural decision. Most quizzes have 1–3 questions. Use 4–5 only when the diff has that many distinct architectural decisions. Hard cap is 5.
 - Pass only when the average score is at least 1.5 and no question scored 0. Scores are 0, 1, or 2.
 - Lockfiles and `skip_paths` in `.shipquiz.toml` skip the quiz. A trivial code change still gets one question.
