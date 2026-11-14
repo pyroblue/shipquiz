@@ -12,7 +12,7 @@ const links = [
   { href: "/docs", label: "Docs" },
 ];
 
-/** Site header. The wordmark is omitted on the home page, where the ship carries it. */
+/** Site header. The home page hides the wordmark until the phone menu opens. */
 export function SiteHeader() {
   const pathname = usePathname();
   const home = pathname === "/";
@@ -36,12 +36,12 @@ export function SiteHeader() {
       }
     >
       <div
-        className={`mx-auto flex w-full max-w-6xl items-center gap-x-6 px-5 py-4 ${home ? "justify-end" : "justify-between"}`}
+        className={`mx-auto flex w-full max-w-6xl items-center gap-x-6 px-5 py-4 ${home && !open ? "justify-end" : "justify-between"}`}
       >
-        {home ? null : (
+        {home && !open ? null : (
           <Link
             href="/"
-            className="display-face font-wordmark text-2xl leading-none uppercase"
+            className={`display-face font-wordmark text-2xl leading-none uppercase ${home ? "lg:hidden" : ""}`}
             onClick={closeMenu}
           >
             SHIPQUIZ
