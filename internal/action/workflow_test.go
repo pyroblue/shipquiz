@@ -14,6 +14,7 @@ func TestWorkflowUsesLLMSecret(t *testing.T) {
 		"SHIPQUIZ_MODEL: gpt-4.1-mini",
 		`SHIPQUIZ_BASE_URL: "https://example.test/v1"`,
 		"!contains(github.event.comment.body, '<!-- shipquiz')",
+		`::warning::shipquiz: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped`,
 	} {
 		if !strings.Contains(got, want) {
 			t.Fatalf("workflow missing %q", want)
