@@ -24,14 +24,32 @@ const typewriter = Special_Elite({
   variable: "--font-typewriter",
 });
 
+const description =
+  "You're the captain. shipquiz asks a few questions about your change and blocks git push until you can explain it. Your model, your key. The diff never goes to a shipquiz server.";
+
 export const metadata: Metadata = {
   metadataBase: new URL("https://shipquiz.com"),
   title: {
     default: "shipquiz — ship only what you can explain",
     template: "%s · shipquiz",
   },
-  description:
-    "A local pre-push quiz and GitHub Action that ask you to explain the architecture of a change before it ships. Bring your own model key. Diffs stay off shipquiz servers.",
+  description,
+  openGraph: {
+    siteName: "shipquiz",
+    type: "website",
+    images: [
+      {
+        url: "/og.png",
+        width: 1200,
+        height: 630,
+        alt: "shipquiz across the hull of a ship. Ship only what you can explain.",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    images: ["/og.png"],
+  },
 };
 
 /** A hand-drawn serif for titles, a text serif, and a typewriter for commands. */

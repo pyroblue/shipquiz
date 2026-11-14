@@ -6,9 +6,9 @@ import { useEffect, useState, type MouseEvent } from "react";
 
 const links = [
   { href: "/#install", label: "Install" },
-  { href: "/#hook", label: "Hook" },
   { href: "/#action", label: "Github Action" },
   { href: "/#skill", label: "Skill" },
+  { href: "/#hook", label: "Hook" },
   { href: "/docs", label: "Docs" },
 ];
 

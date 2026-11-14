@@ -66,7 +66,7 @@ func cmdGitHubAction(args []string) int {
 	if provider == cfg.Provider && cfg.Model != "" {
 		current = cfg.Model
 	}
-	model, err := pickModel(con, client, current)
+	model, err := pickModel(con, client, provider, current)
 	if err != nil {
 		return fail(err)
 	}

@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -76,7 +78,7 @@ func cmdSetup() int {
 	if err != nil {
 		return fail(err)
 	}
-	model, err := pickModel(con, client, cfg.Model)
+	model, err := pickModel(con, client, cfg.Provider, cfg.Model)
 	if err != nil {
 		return fail(err)
 	}
@@ -110,43 +112,124 @@ func cmdSetup() int {
 	return offerHook(con)
 }
 
-func pickModel(con console, client llm.Client, current string) (string, error) {
+func pickModel(con console, client llm.Client, provider, current string) (string, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
-	models, err := client.ListModels(ctx)
+	live, err := client.ListModels(ctx)
 	cancel()
 	if err != nil {
 		fmt.Fprintf(con.out, "Could not list models: %v\n", err)
-		entered, perr := con.prompt(fmt.Sprintf("Model [%s]: ", current))
+		live = nil
+	}
+	models := modelChoices(provider, live, current)
+	if len(models) == 0 {
+		entered, perr := con.prompt("Model: ")
 		if perr != nil {
 			return "", perr
 		}
-		if entered == "" {
-			return current, nil
-		}
 		return entered, nil
 	}
-	if len(models) > 15 {
-		models = models[:15]
-	}
 	fmt.Fprintln(con.out, "\nModels")
-	selected := 1
 	for i, model := range models {
 		fmt.Fprintf(con.out, "  %d  %s\n", i+1, model)
-		if model == current {
-			selected = i + 1
-		}
 	}
-	entered, err := con.prompt(fmt.Sprintf("Model [%d]: ", selected))
+	fmt.Fprintln(con.out, "Pick a number, or type a model id.")
+	entered, err := con.prompt("Model [1]: ")
 	if err != nil {
 		return "", err
 	}
 	if entered == "" {
-		return models[selected-1], nil
+		return models[0], nil
 	}
 	if n, nerr := strconv.Atoi(entered); nerr == nil && n >= 1 && n <= len(models) {
 		return models[n-1], nil
 	}
 	return entered, nil
+}
+
+var datedModelSuffix = regexp.MustCompile(`-(?:\d{8}|\d{4}-\d{2}-\d{2})$`)
+
+// modelChoices is the numbered menu. The current model is first. Dated snapshots
+// are hidden when the provider also offers the undated id.
+func modelChoices(provider string, live []string, current string) []string {
+	const limit = 15
+	source := dropDatedAliases(live)
+	if len(source) == 0 {
+		source = suggestedModels(provider)
+	}
+	sort.SliceStable(source, func(i, j int) bool {
+		return modelLess(source[i], source[j])
+	})
+	seen := map[string]struct{}{}
+	out := make([]string, 0, limit)
+	add := func(id string) {
+		id = strings.TrimSpace(id)
+		if id == "" || len(out) >= limit {
+			return
+		}
+		if _, ok := seen[id]; ok {
+			return
+		}
+		seen[id] = struct{}{}
+		out = append(out, id)
+	}
+	add(current)
+	for _, id := range source {
+		add(id)
+	}
+	return out
+}
+
+func suggestedModels(provider string) []string {
+	switch provider {
+	case "openai":
+		return []string{config.DefaultModel("openai")}
+	case "gemini":
+		return []string{config.DefaultModel("gemini")}
+	default:
+		return []string{config.DefaultModel("anthropic"), "claude-haiku-4-5"}
+	}
+}
+
+func dropDatedAliases(ids []string) []string {
+	set := map[string]struct{}{}
+	for _, id := range ids {
+		set[id] = struct{}{}
+	}
+	out := make([]string, 0, len(ids))
+	for _, id := range ids {
+		if loc := datedModelSuffix.FindStringIndex(id); loc != nil {
+			if _, ok := set[id[:loc[0]]]; ok {
+				continue
+			}
+		}
+		out = append(out, id)
+	}
+	return out
+}
+
+func modelLess(a, b string) bool {
+	pa, pb := modelPriority(a), modelPriority(b)
+	if pa != pb {
+		return pa < pb
+	}
+	da := datedModelSuffix.MatchString(a)
+	db := datedModelSuffix.MatchString(b)
+	if da != db {
+		return !da
+	}
+	return a < b
+}
+
+func modelPriority(id string) int {
+	lower := strings.ToLower(id)
+	switch {
+	case strings.Contains(lower, "sonnet") || strings.Contains(lower, "gpt-4.1") || strings.Contains(lower, "gpt-5") || strings.Contains(lower, "gemini-2.5"):
+		return 0
+	case strings.Contains(lower, "haiku") || strings.Contains(lower, "opus") || strings.Contains(lower, "gpt-4") || strings.Contains(lower, "gemini"):
+		return 1
+	default:
+		return 2
+	}
 }
 
 func offerHook(con console) int {
