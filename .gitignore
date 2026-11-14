@@ -1,0 +1,8 @@
+dist/
+website/media/
+website/node_modules/
+website/.next/
+website/out/
+*.exe
+.DS_Store
+coverage.out

@@ -1,0 +1,228 @@
+@import "tailwindcss";
+
+:root {
+  --paper: #f3f0e6;
+  --ink: #1a3148;
+  --stamp: #1f5f73;
+  --mark: #3d6d8c;
+  --muted: #5a6a78;
+  --line: #d3ddd8;
+  --card: #f7f6f1;
+  --sky: #d7e5ef;
+}
+
+@theme inline {
+  --color-paper: var(--paper);
+  --color-ink: var(--ink);
+  --color-stamp: var(--stamp);
+  --color-mark: var(--mark);
+  --color-muted: var(--muted);
+  --color-line: var(--line);
+  --color-card: var(--card);
+  --color-sky: var(--sky);
+  --font-sans: var(--font-body), Georgia, serif;
+  --font-serif: var(--font-display), Georgia, serif;
+  --font-mono: var(--font-typewriter), "Courier New", monospace;
+}
+
+body {
+  isolation: isolate;
+  background-color: var(--paper);
+  background-image: linear-gradient(180deg, var(--sky) 0%, var(--paper) 22rem);
+  background-attachment: fixed;
+  color: var(--ink);
+  font-family: var(--font-sans), Georgia, serif;
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+/* Galley runs wide, so headings sit tighter than the default tracking. */
+h1,
+h2,
+h3,
+.display-face {
+  font-weight: 500;
+  letter-spacing: -0.06em;
+  text-transform: capitalize;
+}
+
+/* The shipquiz wordmark uses the same display face as the headings. */
+.font-wordmark {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: 0.09;
+  background-image: radial-gradient(circle, var(--ink) 0.55px, transparent 0.7px);
+  background-size: 4px 4px;
+}
+
+::selection {
+  background: #d3e4ee;
+  color: var(--ink);
+}
+
+/* Clear the sticky header for hashed sections and the action card. */
+section[id],
+article[id] {
+  scroll-margin-top: 5.5rem;
+}
+
+.grid > * {
+  min-width: 0;
+}
+
+.border-mark {
+  border-color: var(--mark);
+}
+
+.border-t-mark {
+  border-top-color: var(--mark);
+}
+
+.border-b-mark {
+  border-bottom-color: var(--mark);
+}
+
+.text-mark {
+  color: var(--mark);
+}
+
+.decoration-mark {
+  text-decoration-color: var(--mark);
+}
+
+/* Special Elite has no bold file, so these command names synthesize a heavier weight. */
+:not(pre) > code,
+dt.font-mono,
+.command {
+  font-weight: 700;
+  font-synthesis: weight;
+}
+
+/* The word sits in this well, narrower than the headline and example card. */
+.ship-well {
+  container-type: inline-size;
+}
+
+/* Hard offset, no blur, so the white word stays readable on the hull. */
+.ship-title {
+  /* SHIPQUIZ in Galley at this tracking is about 5em wide. */
+  font-size: calc(85cqw / 5);
+  font-weight: 700;
+  font-synthesis: weight;
+  letter-spacing: -0.07em;
+  /* Galley has no bold cut, so the stroke thickens the hero. */
+  -webkit-text-stroke: 0.02em currentColor;
+  paint-order: stroke fill;
+  text-shadow: 0.06em 0.06em 0 #1a3148;
+  text-transform: uppercase;
+  /* Ink speckles on the hero word only. */
+  filter: url(#hero-distress);
+}
+
+/* Torn page edge. The fade follows a ragged line. */
+.ship-fade {
+  opacity: 1;
+  -webkit-mask-image: url("/ship-tear.svg?v=3");
+  mask-image: url("/ship-tear.svg?v=3");
+  -webkit-mask-size: 100% 100%;
+  mask-size: 100% 100%;
+  -webkit-mask-repeat: no-repeat;
+  mask-repeat: no-repeat;
+  -webkit-mask-mode: alpha;
+  mask-mode: alpha;
+}
+
+.term-cursor {
+  display: inline-block;
+  width: 0.55ch;
+  height: 1em;
+  margin-left: 1px;
+  background: currentColor;
+  vertical-align: text-bottom;
+  animation: term-blink 1s steps(1) infinite;
+}
+
+@keyframes term-blink {
+  50% {
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .term-cursor {
+    animation: none;
+  }
+}
+
+/* Two loose sheets sit behind the card that is being answered. */
+.quiz-sheet {
+  position: absolute;
+  inset: 0;
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: 0 8px 16px rgb(26 49 72 / 0.09);
+}
+
+.quiz-sheet-a {
+  transform: rotate(-2.4deg) translate(-8px, 6px);
+}
+
+.quiz-sheet-b {
+  transform: rotate(2.1deg) translate(10px, -4px);
+}
+
+.quiz-card {
+  border: 1px solid var(--line);
+  background: var(--card);
+  box-shadow: 0 12px 22px rgb(26 49 72 / 0.1);
+}
+
+.quiz-correct {
+  color: #146c2e;
+}
+
+/* The next question swings down onto the deck. */
+.quiz-deck {
+  perspective: 1400px;
+}
+
+.quiz-flip-in {
+  transform-origin: 50% 0%;
+  backface-visibility: hidden;
+  animation: quiz-flip-in 0.7s cubic-bezier(0.16, 0.84, 0.32, 1) both;
+}
+
+@keyframes quiz-flip-in {
+  from {
+    transform: rotateX(-68deg);
+    opacity: 0.4;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .quiz-flip-in {
+    animation: none;
+  }
+}
+
+.rubber-stamp {
+  display: inline-block;
+  border: 1px solid var(--stamp);
+  color: var(--stamp);
+  padding: 0.05rem 0.4rem;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  line-height: 1.5;
+  white-space: nowrap;
+}

@@ -1,0 +1,35 @@
+name: shipquiz
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+  issue_comment:
+    types: [created]
+
+permissions:
+  contents: read
+  pull-requests: write
+  checks: write
+
+jobs:
+  quiz:
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'q1:'))
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install shipquiz
+        run: |
+          curl -fsSL https://shipquiz.com/install.sh | sh -s -- --no-setup
+          echo "$HOME/.shipquiz/bin" >> "$GITHUB_PATH"
+
+      - name: Run the quiz
+        env:
+          SHIPQUIZ_API_KEY: ${{ secrets.SHIPQUIZ_API_KEY }}
+          SHIPQUIZ_PROVIDER: anthropic
+          SHIPQUIZ_MODEL: claude-sonnet-4-5
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: shipquiz action-run
