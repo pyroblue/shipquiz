@@ -24,6 +24,37 @@ func ParseEvaluation(raw string) (Evaluation, error) {
 	return ev, nil
 }
 
+// ParseReply extracts the freeform-comment reading from a model response.
+func ParseReply(raw string) (Reply, error) {
+	var reply Reply
+	if err := json.Unmarshal([]byte(extractJSON(raw)), &reply); err != nil {
+		return Reply{}, fmt.Errorf("could not parse reply JSON: %w", err)
+	}
+	return reply, nil
+}
+
+// NormalizeReply lines answers up with the quiz and clears attempted when none were given.
+func NormalizeReply(reply Reply, questions []Question) Reply {
+	byID := map[string]string{}
+	for _, answer := range reply.Answers {
+		byID[strings.ToLower(strings.TrimSpace(answer.ID))] = strings.TrimSpace(answer.Text)
+	}
+	aligned := make([]Answer, 0, len(questions))
+	any := false
+	for _, question := range questions {
+		text := byID[strings.ToLower(question.ID)]
+		if text != "" {
+			any = true
+		}
+		aligned = append(aligned, Answer{ID: question.ID, Text: text})
+	}
+	reply.Answers = aligned
+	if !any {
+		reply.Attempted = false
+	}
+	return reply
+}
+
 func extractJSON(raw string) string {
 	s := strings.TrimSpace(raw)
 	if start := strings.Index(s, "```"); start >= 0 {

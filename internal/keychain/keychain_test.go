@@ -7,7 +7,7 @@ import (
 func TestFileStoreRoundTrip(t *testing.T) {
 	t.Setenv("SHIPQUIZ_CONFIG_DIR", t.TempDir())
 	t.Setenv("SHIPQUIZ_KEY_STORE", "file")
-	t.Setenv("SHIPQUIZ_API_KEY", "")
+	t.Setenv("SHIPQUIZ_LLM_API_KEY", "")
 
 	if err := Set("anthropic", "sk-test"); err != nil {
 		t.Fatal(err)
@@ -27,7 +27,7 @@ func TestEnvOverridesStore(t *testing.T) {
 	if err := Set("openai", "from-file"); err != nil {
 		t.Fatal(err)
 	}
-	t.Setenv("SHIPQUIZ_API_KEY", "from-env")
+	t.Setenv("SHIPQUIZ_LLM_API_KEY", "from-env")
 	got, err := Get("openai")
 	if err != nil {
 		t.Fatal(err)

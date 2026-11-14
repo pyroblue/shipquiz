@@ -3,6 +3,7 @@ package quiz
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/shipquiz/shipquiz/internal/llm"
@@ -52,6 +53,28 @@ func Grade(ctx context.Context, client llm.Client, model string, diff Diff, ques
 		return Evaluation{}, err
 	}
 	return Enforce(ev, questions, passing), nil
+}
+
+// Interpret asks the model whether a freeform comment answers the quiz.
+func Interpret(ctx context.Context, client llm.Client, model string, questions []Question, comment string) (Reply, error) {
+	if strings.TrimSpace(comment) == "" {
+		return Reply{}, nil
+	}
+	system, user := InterpretPrompt(questions, comment)
+	raw, err := client.Complete(ctx, llm.Request{
+		Model:     model,
+		System:    system,
+		User:      user,
+		MaxTokens: 900,
+	})
+	if err != nil {
+		return Reply{}, err
+	}
+	reply, err := ParseReply(raw)
+	if err != nil {
+		return Reply{}, err
+	}
+	return NormalizeReply(reply, questions), nil
 }
 
 // WithTimeout returns a context limited to seconds, or 20 when seconds is unset.

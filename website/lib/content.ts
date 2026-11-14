@@ -37,7 +37,7 @@ skip_paths = ["**/*_test.go", "docs/**", "*.md"]
 question_style = "default" # default | failure-modes | data-flow
 `;
 
-/** Workflow printed by \`shipquiz github-action\`. */
+/** Workflow written by `shipquiz github-action`. */
 export const workflowYaml = `name: shipquiz
 
 on:
@@ -53,7 +53,7 @@ permissions:
 
 jobs:
   quiz:
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'q1:'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !contains(github.event.comment.body, '<!-- shipquiz'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -68,7 +68,7 @@ jobs:
 
       - name: Run the quiz
         env:
-          SHIPQUIZ_API_KEY: \${{ secrets.SHIPQUIZ_API_KEY }}
+          SHIPQUIZ_LLM_API_KEY: \${{ secrets.SHIPQUIZ_LLM_API_KEY }}
           SHIPQUIZ_PROVIDER: anthropic
           SHIPQUIZ_MODEL: claude-sonnet-4-5
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
@@ -85,7 +85,7 @@ export const commands: { command: string; detail: string }[] = [
   { command: "shipquiz status", detail: "Show the config, the hook, and whether the API key works." },
   { command: "shipquiz config", detail: "Print the config that will be used, including repo overrides." },
   { command: "shipquiz config set KEY VALUE", detail: "Update one global setting, such as quiz.timeout_seconds." },
-  { command: "shipquiz github-action", detail: "Print the GitHub Actions workflow." },
-  { command: "shipquiz github-action --write", detail: "Write .github/workflows/shipquiz.yml." },
+  { command: "shipquiz github-action", detail: "Ask for the provider, model, and LLM API key, write the workflow, and show the secret to set." },
+  { command: "shipquiz github-action --print", detail: "Print the workflow without asking." },
   { command: "shipquiz update", detail: "Replace this binary with the latest GitHub release." },
 ];

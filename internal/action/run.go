@@ -63,9 +63,9 @@ func Run(ctx context.Context) int {
 		fmt.Fprintf(os.Stderr, "shipquiz: %v\n", err)
 		return 1
 	}
-	apiKey := strings.TrimSpace(os.Getenv("SHIPQUIZ_API_KEY"))
+	apiKey := strings.TrimSpace(os.Getenv("SHIPQUIZ_LLM_API_KEY"))
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "shipquiz: set the SHIPQUIZ_API_KEY secret")
+		fmt.Fprintln(os.Stderr, "shipquiz: set the SHIPQUIZ_LLM_API_KEY secret")
 		return 1
 	}
 	client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
@@ -173,11 +173,18 @@ func gradeReply(ctx context.Context, gh *GitHub, client llm.Client, cfg config.C
 		fmt.Fprintln(os.Stderr, "shipquiz: no quiz comment found on this pull request")
 		return 1
 	}
-	answers := ParseAnswers(reply, marker.Quiz.Questions)
-	if !HasAnyAnswer(answers) {
-		fmt.Fprintln(os.Stderr, "shipquiz: reply did not include any answers")
+	readCtx, cancelRead := quiz.WithTimeout(ctx, cfg.Quiz.TimeoutSeconds)
+	read, err := quiz.Interpret(readCtx, client, cfg.Model, marker.Quiz.Questions, reply)
+	cancelRead()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "shipquiz: read reply: %v\n", err)
 		return 1
 	}
+	if !read.Attempted {
+		fmt.Println("shipquiz: comment does not answer the quiz")
+		return 0
+	}
+	answers := read.Answers
 	pr, err := gh.GetPull(ctx, number)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "shipquiz: pull request: %v\n", err)

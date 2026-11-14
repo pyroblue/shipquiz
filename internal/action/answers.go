@@ -17,71 +17,6 @@ type Marker struct {
 	Quiz       quiz.Generated `json:"quiz"`
 }
 
-// ParseAnswers reads q1: / 1. lines from a PR reply.
-func ParseAnswers(body string, questions []quiz.Question) []quiz.Answer {
-	byID := map[string]string{}
-	var current string
-	var buf strings.Builder
-	flush := func() {
-		if current == "" {
-			return
-		}
-		byID[current] = strings.TrimSpace(buf.String())
-		buf.Reset()
-	}
-	for _, line := range strings.Split(body, "\n") {
-		if id, rest, ok := matchAnswerLine(line, questions); ok {
-			flush()
-			current = id
-			buf.WriteString(rest)
-			continue
-		}
-		if current != "" {
-			if buf.Len() > 0 {
-				buf.WriteByte('\n')
-			}
-			buf.WriteString(line)
-		}
-	}
-	flush()
-	answers := make([]quiz.Answer, 0, len(questions))
-	for _, question := range questions {
-		answers = append(answers, quiz.Answer{ID: question.ID, Text: strings.TrimSpace(byID[question.ID])})
-	}
-	return answers
-}
-
-// HasAnyAnswer reports whether the reply included at least one non-empty answer.
-func HasAnyAnswer(answers []quiz.Answer) bool {
-	for _, answer := range answers {
-		if strings.TrimSpace(answer.Text) != "" {
-			return true
-		}
-	}
-	return false
-}
-
-func matchAnswerLine(line string, questions []quiz.Question) (string, string, bool) {
-	trimmed := strings.TrimSpace(line)
-	lower := strings.ToLower(trimmed)
-	for i, question := range questions {
-		id := strings.ToLower(question.ID)
-		prefixes := []string{
-			id + ":",
-			id + ")",
-			fmt.Sprintf("%d.", i+1),
-			fmt.Sprintf("%d)", i+1),
-			fmt.Sprintf("%d:", i+1),
-		}
-		for _, prefix := range prefixes {
-			if strings.HasPrefix(lower, prefix) {
-				return question.ID, strings.TrimSpace(trimmed[len(prefix):]), true
-			}
-		}
-	}
-	return "", "", false
-}
-
 func encodeMarker(marker Marker) (string, error) {
 	raw, err := json.Marshal(marker)
 	if err != nil {
@@ -120,7 +55,7 @@ func renderQuiz(marker Marker) (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "<!-- shipquiz %s -->\n\n", encoded)
 	fmt.Fprintf(&b, "## shipquiz\n\n**%s** — %s\n\n", blank(marker.Quiz.Size, "change"), marker.Quiz.Summary)
-	b.WriteString("Reply in this thread. Start each answer with its id (`q1:`, `q2:`, …).\n\n")
+	b.WriteString("Reply in this thread with your answers, in your own words. The model matches the reply to each question.\n\n")
 	for _, question := range marker.Quiz.Questions {
 		fmt.Fprintf(&b, "### %s\n\n%s\n\n", question.ID, question.Question)
 		if question.WhyItMatters != "" {
@@ -132,6 +67,7 @@ func renderQuiz(marker Marker) (string, error) {
 
 func renderResult(ev quiz.Evaluation) string {
 	var b strings.Builder
+	b.WriteString("<!-- shipquiz result -->\n\n")
 	fmt.Fprintf(&b, "## shipquiz · %s\n\nScore **%.1f / 2**\n\n%s\n", ev.Overall, ev.Score, ev.Feedback)
 	for _, item := range ev.PerQuestion {
 		fmt.Fprintf(&b, "\n- **%s** %d — %s", item.ID, item.Score, item.Comment)

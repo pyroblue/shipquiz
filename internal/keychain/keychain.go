@@ -38,10 +38,10 @@ func Set(provider, secret string) error {
 	return nil
 }
 
-// Get returns the API key. SHIPQUIZ_API_KEY wins so CI can supply a secret
-// without writing it to disk.
+// Get returns the API key. SHIPQUIZ_LLM_API_KEY wins so CI can supply the
+// model provider secret without writing it to disk.
 func Get(provider string) (string, error) {
-	if key := strings.TrimSpace(os.Getenv("SHIPQUIZ_API_KEY")); key != "" {
+	if key := strings.TrimSpace(os.Getenv("SHIPQUIZ_LLM_API_KEY")); key != "" {
 		return key, nil
 	}
 	provider = strings.TrimSpace(provider)

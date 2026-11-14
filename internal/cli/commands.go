@@ -16,7 +16,6 @@ import (
 	"time"
 
 	"github.com/BurntSushi/toml"
-	"github.com/shipquiz/shipquiz/internal/action"
 	"github.com/shipquiz/shipquiz/internal/config"
 	"github.com/shipquiz/shipquiz/internal/gitx"
 	"github.com/shipquiz/shipquiz/internal/hook"
@@ -26,7 +25,7 @@ import (
 	"github.com/shipquiz/shipquiz/internal/version"
 )
 
-const releaseRepo = "shipquiz/shipquiz"
+const releaseRepo = "pyroblue/shipquiz"
 
 func cmdInstall() int {
 	if !gitx.Inside() {
@@ -129,38 +128,6 @@ func cmdConfig(args []string) int {
 	}
 	fmt.Fprintln(os.Stderr, "usage: shipquiz config [set <key> <value>]")
 	return 1
-}
-
-func cmdGitHubAction(args []string) int {
-	fs := flag.NewFlagSet("github-action", flag.ContinueOnError)
-	fs.SetOutput(os.Stderr)
-	write := fs.Bool("write", false, "write .github/workflows/shipquiz.yml")
-	if err := fs.Parse(args); err != nil {
-		return 1
-	}
-	if !*write {
-		fmt.Print(action.Workflow)
-		return 0
-	}
-	root, err := gitx.Root()
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "shipquiz: run this inside a git repository")
-		return 1
-	}
-	path := filepath.Join(root, ".github", "workflows", "shipquiz.yml")
-	if _, err := os.Stat(path); err == nil {
-		fmt.Fprintf(os.Stderr, "shipquiz: %s already exists\n", path)
-		return 1
-	}
-	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
-		return fail(err)
-	}
-	if err := os.WriteFile(path, []byte(action.Workflow), 0o644); err != nil {
-		return fail(err)
-	}
-	fmt.Printf("shipquiz: wrote %s\n", path)
-	fmt.Println("Add a repository secret named SHIPQUIZ_API_KEY, then require the shipquiz check.")
-	return 0
 }
 
 func cmdUpdate() int {

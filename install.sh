@@ -31,7 +31,7 @@ case "$arch" in
     ;;
 esac
 
-repo="${SHIPQUIZ_REPO:-shipquiz/shipquiz}"
+repo="${SHIPQUIZ_REPO:-pyroblue/shipquiz}"
 version="${SHIPQUIZ_VERSION:-latest}"
 asset="shipquiz_${os}_${arch}.tar.gz"
 if [ "$version" = "latest" ]; then

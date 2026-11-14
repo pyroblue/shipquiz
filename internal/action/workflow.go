@@ -1,9 +1,32 @@
 // Package action runs the pull-request quiz and renders the GitHub Actions workflow.
 package action
 
-// Workflow is the v1 GitHub Action. The quiz check is the merge gate.
-// Add a repository secret named SHIPQUIZ_API_KEY.
-const Workflow = `name: shipquiz
+import (
+	"strconv"
+	"strings"
+)
+
+// Workflow is the GitHub Action for one provider and model.
+// The model provider key belongs in the SHIPQUIZ_LLM_API_KEY repository secret.
+func Workflow(provider, model, baseURL string) string {
+	if strings.TrimSpace(provider) == "" {
+		provider = "anthropic"
+	}
+	if strings.TrimSpace(model) == "" {
+		model = "claude-sonnet-4-5"
+	}
+	baseLine := ""
+	if url := strings.TrimSpace(baseURL); url != "" {
+		baseLine = "\n          SHIPQUIZ_BASE_URL: " + strconv.Quote(url)
+	}
+	return strings.NewReplacer(
+		"__PROVIDER__", provider,
+		"__MODEL__", model,
+		"__BASE_URL_LINE__", baseLine,
+	).Replace(workflowTemplate)
+}
+
+const workflowTemplate = `name: shipquiz
 
 on:
   pull_request:
@@ -18,7 +41,7 @@ permissions:
 
 jobs:
   quiz:
-    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && contains(github.event.comment.body, 'q1:'))
+    if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !contains(github.event.comment.body, '<!-- shipquiz'))
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -33,9 +56,9 @@ jobs:
 
       - name: Run the quiz
         env:
-          SHIPQUIZ_API_KEY: ${{ secrets.SHIPQUIZ_API_KEY }}
-          SHIPQUIZ_PROVIDER: anthropic
-          SHIPQUIZ_MODEL: claude-sonnet-4-5
+          SHIPQUIZ_LLM_API_KEY: ${{ secrets.SHIPQUIZ_LLM_API_KEY }}
+          SHIPQUIZ_PROVIDER: __PROVIDER__
+          SHIPQUIZ_MODEL: __MODEL____BASE_URL_LINE__
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: shipquiz action-run
 `

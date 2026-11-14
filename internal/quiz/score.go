@@ -22,6 +22,12 @@ type Answer struct {
 	Text string `json:"text"`
 }
 
+// Reply is a model's reading of a freeform pull-request comment.
+type Reply struct {
+	Attempted bool     `json:"attempted"`
+	Answers   []Answer `json:"answers"`
+}
+
 // PerQuestion is the grade for one answer.
 type PerQuestion struct {
 	ID      string `json:"id"`

@@ -28,21 +28,13 @@ export PATH="$HOME/.shipquiz/bin:$PATH"
 shipquiz install
 ```
 
-Until a GitHub release exists, build from this repo:
-
-```bash
-go build -o ~/.shipquiz/bin/shipquiz ./cmd/shipquiz
-shipquiz setup
-shipquiz install
-```
-
 GitHub Action (pull request gate):
 
 ```bash
-shipquiz github-action --write
+shipquiz github-action
 ```
 
-Then add a repository secret named `SHIPQUIZ_API_KEY` and require the `shipquiz` check. Reviewers reply on the quiz comment with `q1:`, `q2:`, and so on.
+The command asks for the provider, model, and LLM API key, writes `.github/workflows/shipquiz.yml`, and tells you to set the repository secret `SHIPQUIZ_LLM_API_KEY`. That secret is the model provider key. The key is not written into the workflow. Require the `shipquiz` check if a failed quiz should block merging. Reviewers reply to the quiz comment in their own words.
 
 Agent skill (this file), from the repository root. Claude Code reads `.claude/skills`. Cursor reads that folder and `.agents/skills`.
 

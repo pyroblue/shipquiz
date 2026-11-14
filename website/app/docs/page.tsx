@@ -158,21 +158,22 @@ export default function DocsPage() {
             The diff is sent to your model provider, not to shipquiz.
           </p>
           <p className="leading-relaxed text-muted">
-            Reply in the thread. Start each answer with its id:
+            Reply in the thread in your own words. The model matches that reply to each question.
+            A comment that is not an answer is left alone.
           </p>
           <CodeBlock
             label="comment reply"
-            code={`q1: the token is checked in the handler, so a new route that skips it is public\nq2: a cache miss stamps the origin because the lock is process-local`}
+            code={`The token is checked in the handler, so a new route that skips it is public.\nA cache miss stamps the origin because the lock is process-local.`}
           />
           <p className="leading-relaxed text-muted">
-            When you reply, the workflow grades the answers, posts what was missing, and marks the check passed or failed.
-            A failed quiz also fails the job. Add a repository secret named{" "}
-            <code className="font-mono text-ink">SHIPQUIZ_API_KEY</code>.
+            When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed.
+            A failed quiz also fails the job. The repository secret is{" "}
+            <code className="font-mono text-ink">SHIPQUIZ_LLM_API_KEY</code>, and its value is the model provider key.
           </p>
           <CodeBlock label=".github/workflows/shipquiz.yml" code={workflowYaml.trim()} />
           <p className="text-sm leading-relaxed text-muted">
-            <code className="font-mono text-ink">shipquiz github-action</code> prints this file.{" "}
-            <code className="font-mono text-ink">shipquiz github-action --write</code> writes it, and refuses to overwrite an existing one.
+            <code className="font-mono text-ink">shipquiz github-action</code> asks for the provider, model, and LLM API key, writes this file, and shows the secret to set.
+            The key stays out of the file. <code className="font-mono text-ink">--print</code> prints the workflow without asking.
           </p>
         </section>
 
@@ -210,13 +211,13 @@ export default function DocsPage() {
         <section id="source" className="space-y-4">
           <h2 className="font-serif text-3xl">From source</h2>
           <p className="leading-relaxed text-muted">
-            Releases are not published yet. From a checkout of this repo, with Go installed:
+            From a checkout of this repo, with Go installed:
           </p>
           <CodeBlock label="build" code={sourceBuild} />
           <p className="leading-relaxed text-muted">
             <code className="font-mono text-ink">go test ./...</code> covers config merging, skipped paths, grading, the hook installer, and comment parsing.
             Point Vercel at the <code className="font-mono text-ink">website</code> directory to host this site.
-            <code className="font-mono text-ink"> SHIPQUIZ_API_KEY</code> overrides the saved key. That is how CI supplies the secret.
+            <code className="font-mono text-ink"> SHIPQUIZ_LLM_API_KEY</code> overrides the saved key. That is the model provider key CI sends as a repository secret.
           </p>
         </section>
       </div>

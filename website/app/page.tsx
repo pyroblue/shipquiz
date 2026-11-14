@@ -91,7 +91,7 @@ export default function HomePage() {
               the correct answer.
             </p>
             <p className="command mt-4 border-t border-line pt-3 font-mono text-sm text-muted">
-              shipquiz github-action --write
+              shipquiz github-action
             </p>
           </article>
           <article className="border border-line border-t-[3px] border-t-mark bg-card p-6">

@@ -1,0 +1,48 @@
+name: release
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+
+      - name: Build archives
+        env:
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          set -eu
+          mkdir -p dist
+          for target in darwin/amd64 darwin/arm64 linux/amd64 linux/arm64; do
+            os=${target%/*}
+            arch=${target#*/}
+            dir="dist/shipquiz_${os}_${arch}"
+            mkdir -p "$dir"
+            CGO_ENABLED=0 GOOS="$os" GOARCH="$arch" go build \
+              -ldflags "-s -w -X github.com/shipquiz/shipquiz/internal/version.Current=${VERSION}" \
+              -o "$dir/shipquiz" ./cmd/shipquiz
+            tar -C "$dir" -czf "dist/shipquiz_${os}_${arch}.tar.gz" shipquiz
+          done
+
+      - name: Publish
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: 0.1.${{ github.run_number }}
+        run: |
+          set -eu
+          git log -1 --pretty=%s > release-notes.txt
+          gh release create "v${VERSION}" dist/shipquiz_*.tar.gz \
+            --title "shipquiz v${VERSION}" \
+            --notes-file release-notes.txt

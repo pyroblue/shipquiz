@@ -12,3 +12,18 @@ func TestParseGeneratedStripsFence(t *testing.T) {
 		t.Fatalf("%#v", g)
 	}
 }
+
+func TestNormalizeReplyDropsEmptyAttempts(t *testing.T) {
+	questions := []Question{{ID: "q1"}, {ID: "q2"}}
+	got := NormalizeReply(Reply{
+		Attempted: true,
+		Answers:   []Answer{{ID: "q2", Text: "  the lock is process-local  "}},
+	}, questions)
+	if !got.Attempted || got.Answers[0].Text != "" || got.Answers[1].Text != "the lock is process-local" {
+		t.Fatalf("%#v", got)
+	}
+	empty := NormalizeReply(Reply{Attempted: true, Answers: []Answer{{ID: "q1", Text: "  "}}}, questions)
+	if empty.Attempted {
+		t.Fatal("expected no attempt")
+	}
+}

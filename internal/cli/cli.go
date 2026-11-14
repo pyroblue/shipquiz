@@ -63,8 +63,9 @@ Quiz yourself on the architecture of a change before it ships.
   shipquiz status                Show config, hook, and key validity
   shipquiz config                Print the resolved config
   shipquiz config set KEY VALUE  Update the global config
-  shipquiz github-action         Print the GitHub Action workflow
-  shipquiz github-action --write Write .github/workflows/shipquiz.yml
+  shipquiz github-action         Ask for the model and key, write the workflow,
+                                 and print the SHIPQUIZ_LLM_API_KEY secret
+  shipquiz github-action --print Print the workflow without asking
   shipquiz update                Replace this binary with the latest release
 
 The hook calls shipquiz hook-run. GitHub Actions calls shipquiz action-run.

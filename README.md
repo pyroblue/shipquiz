@@ -19,7 +19,7 @@ export PATH="$HOME/.shipquiz/bin:$PATH"
 
 Run the path line if you want to stay in the same terminal. A new one already knows where shipquiz is.
 
-Releases are not published yet, so the installer cannot download a binary. Have the repo checked out? Build it from there instead. Go is required.
+Have the repo checked out and want to build it yourself? Go is required.
 
 ```bash
 mkdir -p ~/.shipquiz/bin
@@ -41,7 +41,7 @@ Setup does this:
 
 Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `base_url` is the site origin, such as `https://api.anthropic.com`. For OpenAI and Gemini it is the API root, and it already includes the version, such as `https://api.openai.com/v1`.
 
-`SHIPQUIZ_API_KEY` overrides the saved key. That is how CI supplies the secret.
+`SHIPQUIZ_LLM_API_KEY` overrides the saved key. That is the model provider key CI sends as a repository secret.
 
 ## Commands
 
@@ -56,8 +56,8 @@ Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `b
 | `shipquiz status` | Show the config, the hook, and whether the API key works. |
 | `shipquiz config` | Print the config that will be used, including repo overrides. |
 | `shipquiz config set KEY VALUE` | Update one global setting, such as `quiz.timeout_seconds`. |
-| `shipquiz github-action` | Print the GitHub Actions workflow. |
-| `shipquiz github-action --write` | Write `.github/workflows/shipquiz.yml`. |
+| `shipquiz github-action` | Ask for the provider, model, and LLM API key, write the workflow, and show the secret to set. |
+| `shipquiz github-action --print` | Print the workflow without asking. |
 | `shipquiz update` | Replace this binary with the latest GitHub release. |
 
 The hook calls `shipquiz hook-run`. GitHub Actions calls `shipquiz action-run`. Neither is a command you type.
@@ -113,16 +113,11 @@ You answer in the terminal, one question at a time. A blank line submits the ans
 
 On a pull request, the Action posts the questions as a comment and opens a check named `shipquiz` with the result `action_required`. Require that check in branch protection if you want it to block merging. The diff is sent to your model provider, not to shipquiz.
 
-Reply in the thread. Start each answer with its id:
+Reply in the thread in your own words. The model matches that reply to the questions. A comment that is not an answer is left alone.
 
-```text
-q1: the token is checked in the handler, so a new route that skips it is public
-q2: a cache miss stamps the origin because the lock is process-local
-```
+When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key.
 
-When you reply, the workflow grades the answers, posts what was missing, and marks the check passed or failed. A failed quiz also fails the job. Add a repository secret named `SHIPQUIZ_API_KEY`.
-
-`shipquiz github-action` prints the workflow. `shipquiz github-action --write` writes `.github/workflows/shipquiz.yml`, and refuses to overwrite an existing one. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run` with `SHIPQUIZ_API_KEY`, `SHIPQUIZ_PROVIDER`, and `SHIPQUIZ_MODEL`.
+`shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run` with `SHIPQUIZ_LLM_API_KEY`, `SHIPQUIZ_PROVIDER`, and `SHIPQUIZ_MODEL`. Pushes to `main` publish a GitHub release the installer downloads.
 
 ## Skill
 

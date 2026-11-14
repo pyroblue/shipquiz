@@ -103,3 +103,37 @@ func EvaluationPrompt(diff Diff, questions []Question, answers []Answer, passing
 	user = fmt.Sprintf(evaluationTemplate, passing, string(q), string(a), diff.Text)
 	return evaluationSystem, user
 }
+
+const interpretSystem = "You output only JSON. No markdown fences, no preamble."
+
+const interpretTemplate = `A reviewer replied to a shipquiz comment. Decide whether the reply tries to answer the quiz, and copy out each answer.
+
+The reply may be prose, a list, or labeled. Labels are not required.
+
+attempted is false when the comment is not answering the quiz, such as "LGTM", a question back to the author, or unrelated discussion.
+attempted is true when the reply tries to answer one or more questions, even if some answers are missing or wrong.
+
+When attempted is true, return one entry per question id. text is the part of the reply that answers that question, copied from the reply. Use an empty string when that question was not answered. Do not invent an answer.
+
+Output only JSON:
+
+{
+  "attempted": true,
+  "answers": [
+    {"id": "q1", "text": "..."}
+  ]
+}
+
+Questions:
+%s
+
+Reply:
+%s
+`
+
+// InterpretPrompt builds the messages that map a freeform comment onto questions.
+func InterpretPrompt(questions []Question, comment string) (system, user string) {
+	q, _ := json.MarshalIndent(questions, "", "  ")
+	user = fmt.Sprintf(interpretTemplate, string(q), comment)
+	return interpretSystem, user
+}
