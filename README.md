@@ -115,7 +115,7 @@ On a pull request, the Action posts the questions as a comment and opens a check
 
 Reply in the thread in your own words. The model matches that reply to the questions. A comment that is not an answer is left alone.
 
-When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key.
+When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key. If that secret is missing, the job warns and continues.
 
 `shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run` with `SHIPQUIZ_LLM_API_KEY`, `SHIPQUIZ_PROVIDER`, and `SHIPQUIZ_MODEL`. Pushes to `main` publish a GitHub release the installer downloads.
 

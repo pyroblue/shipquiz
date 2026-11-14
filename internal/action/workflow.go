@@ -60,5 +60,10 @@ jobs:
           SHIPQUIZ_PROVIDER: __PROVIDER__
           SHIPQUIZ_MODEL: __MODEL____BASE_URL_LINE__
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: shipquiz action-run
+        run: |
+          if [ -z "$SHIPQUIZ_LLM_API_KEY" ]; then
+            echo "::warning::shipquiz: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped"
+            exit 0
+          fi
+          shipquiz action-run
 `

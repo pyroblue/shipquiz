@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Newsreader, Special_Elite } from "next/font/google";
 import localFont from "next/font/local";
 import { NauticalScatter } from "@/components/nautical-scatter";
@@ -50,6 +50,11 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     images: ["/og.png"],
   },
+};
+
+/** Navy browser chrome, the same ink as the mark and the header. */
+export const viewport: Viewport = {
+  themeColor: "#1a3148",
 };
 
 /** A hand-drawn serif for titles, a text serif, and a typewriter for commands. */

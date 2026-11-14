@@ -72,7 +72,12 @@ jobs:
           SHIPQUIZ_PROVIDER: anthropic
           SHIPQUIZ_MODEL: claude-sonnet-4-5
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
-        run: shipquiz action-run
+        run: |
+          if [ -z "$SHIPQUIZ_LLM_API_KEY" ]; then
+            echo "::warning::shipquiz: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped"
+            exit 0
+          fi
+          shipquiz action-run
 `;
 
 export const commands: { command: string; detail: string }[] = [
