@@ -57,49 +57,19 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		fmt.Fprintln(os.Stderr, "shipquiz: no cached quiz for this diff")
 		return 1
 	} else {
-		apiKey, err := keychain.Get(cfg.Provider)
-		if err != nil {
-			fmt.Fprintln(os.Stderr, "shipquiz: no API key. Run shipquiz setup.")
-			return 1
+		next, code, ok := generateQuiz(cfg, diff, hook, con)
+		if !ok {
+			return code
 		}
-		client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
-		if err != nil {
-			return fail(err)
-		}
-		genCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
-		stop := ui.Spin(os.Stderr, "generating questions")
-		generated, err = quiz.Generate(genCtx, client, cfg.Model, diff, cfg.QuestionStyle, cfg.Quiz.MinQuestions, cfg.Quiz.MaxQuestions)
-		stop()
-		cancel()
-		if err != nil {
-			if timedOut(genCtx, err) {
-				if hook {
-					fmt.Fprintln(os.Stderr, "shipquiz: timed out generating questions; allowing this push")
-					return 0
-				}
-				return fail(fmt.Errorf("timed out generating questions after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
-			}
-			if out := modelOutput(err); out != nil && !hook {
-				fmt.Fprintf(os.Stderr, "shipquiz: %s\n", out.Error())
-				offerCopy(con, out.Error())
-				return 1
-			}
-			return fail(err)
-		}
+		generated = next
 		entry = quiz.Entry{Generated: generated}
-		if err := quiz.StoreEntry(key, entry); err != nil {
-			fmt.Fprintf(os.Stderr, "shipquiz: cache: %v\n", err)
-		}
+		storeQuiz(key, entry)
 	}
 
 	ui.PrintIntro(con.out, generated)
-	answers, err := ui.CollectChoices(con.in, con.file, con.out, generated.Questions)
-	if err != nil {
-		if hook || errors.Is(err, io.EOF) {
-			fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
-			return 1
-		}
-		return fail(err)
+	answers, code, ok := readChoices(con, hook, generated.Questions)
+	if !ok {
+		return code
 	}
 
 	for {
@@ -107,39 +77,116 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		entry.Generated = generated
 		entry.Passed = ev.Passed()
 		entry.Score = ev.Score
-		if err := quiz.StoreEntry(key, entry); err != nil {
-			fmt.Fprintf(os.Stderr, "shipquiz: cache: %v\n", err)
-		}
+		storeQuiz(key, entry)
 		ui.PrintResult(con.out, ev)
 		if ev.Passed() {
 			return 0
 		}
 
-		missed := missedQuestions(generated.Questions, ev)
-		if len(missed) == 0 {
-			break
-		}
-		retry, promptErr := con.confirm("Retake missed questions?", false)
-		if promptErr != nil && !errors.Is(promptErr, io.EOF) {
-			return fail(promptErr)
-		}
-		if !retry {
-			break
-		}
-		retried, answerErr := ui.CollectChoices(con.in, con.file, con.out, missed)
-		if answerErr != nil {
-			if hook || errors.Is(answerErr, io.EOF) {
-				fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
+		action, actionErr := ui.ChooseMissAction(con.in, con.file, con.out, len(missedQuestions(generated.Questions, ev)) > 0, !cachedOnly)
+		if actionErr != nil {
+			if hook || errors.Is(actionErr, io.EOF) {
+				fmt.Fprintln(con.out, ui.Fail(con.out, "Push blocked."))
 				return 1
 			}
-			return fail(answerErr)
+			return fail(actionErr)
 		}
-		answers = mergeAnswers(answers, retried)
+		switch action {
+		case ui.MissPush:
+			entry.Passed = true
+			storeQuiz(key, entry)
+			fmt.Fprintln(con.out, ui.Pass(con.out, "Push allowed.")+" You read the answers.")
+			return 0
+		case ui.MissRetry:
+			retried, code, ok := readChoices(con, hook, missedQuestions(generated.Questions, ev))
+			if !ok {
+				return code
+			}
+			answers = mergeAnswers(answers, retried)
+		case ui.MissRestart:
+			answers, code, ok = readChoices(con, hook, generated.Questions)
+			if !ok {
+				return code
+			}
+		case ui.MissNew:
+			next, code, ok := generateQuiz(cfg, diff, hook, con)
+			if !ok {
+				if code == 0 {
+					return 0
+				}
+				continue
+			}
+			generated = next
+			entry = quiz.Entry{Generated: generated}
+			storeQuiz(key, entry)
+			ui.PrintIntro(con.out, generated)
+			answers, code, ok = readChoices(con, hook, generated.Questions)
+			if !ok {
+				return code
+			}
+		default:
+			fmt.Fprintln(con.out, ui.Fail(con.out, "Push blocked."))
+			return 1
+		}
 	}
-	if hook {
-		fmt.Fprintln(con.out, ui.Fail(con.out, "Push blocked.")+" Explain the change and push again, or use --no-verify.")
+}
+
+// generateQuiz asks the model for questions. ok is false when the caller should return code.
+func generateQuiz(cfg config.Config, diff quiz.Diff, hook bool, con console) (quiz.Generated, int, bool) {
+	apiKey, err := keychain.Get(cfg.Provider)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "shipquiz: no API key. Run shipquiz setup.")
+		return quiz.Generated{}, 1, false
 	}
-	return 1
+	client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
+	if err != nil {
+		return quiz.Generated{}, fail(err), false
+	}
+	genCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
+	stop := ui.Spin(os.Stderr, "generating questions")
+	generated, err := quiz.Generate(genCtx, client, cfg.Model, diff, cfg.QuestionStyle, cfg.Quiz.MinQuestions, cfg.Quiz.MaxQuestions)
+	stop()
+	cancel()
+	if err != nil {
+		return quiz.Generated{}, generationFailure(err, genCtx, hook, con, cfg), false
+	}
+	return generated, 0, true
+}
+
+// generationFailure prints a generation error and the exit code for it.
+func generationFailure(err error, ctx context.Context, hook bool, con console, cfg config.Config) int {
+	if timedOut(ctx, err) {
+		if hook {
+			fmt.Fprintln(os.Stderr, "shipquiz: timed out generating questions; allowing this push")
+			return 0
+		}
+		return fail(fmt.Errorf("timed out generating questions after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
+	}
+	if out := modelOutput(err); out != nil && !hook {
+		fmt.Fprintf(os.Stderr, "shipquiz: %s\n", out.Error())
+		offerCopy(con, out.Error())
+		return 1
+	}
+	return fail(err)
+}
+
+// readChoices collects answers. ok is false when the caller should return code.
+func readChoices(con console, hook bool, questions []quiz.Question) ([]quiz.Answer, int, bool) {
+	answers, err := ui.CollectChoices(con.in, con.file, con.out, questions)
+	if err != nil {
+		if hook || errors.Is(err, io.EOF) {
+			fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
+			return nil, 1, false
+		}
+		return nil, fail(err), false
+	}
+	return answers, 0, true
+}
+
+func storeQuiz(key string, entry quiz.Entry) {
+	if err := quiz.StoreEntry(key, entry); err != nil {
+		fmt.Fprintf(os.Stderr, "shipquiz: cache: %v\n", err)
+	}
 }
 
 func missedQuestions(questions []quiz.Question, ev quiz.Evaluation) []quiz.Question {

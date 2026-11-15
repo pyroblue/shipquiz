@@ -1,22 +1,22 @@
 ---
 name: shipquiz
 description: >
-  Quizzes the developer on the architecture of a diff before a push or pull
+  Quizzes the developer on the change in a diff before a push or pull
   request. Use when the user is about to commit, push, open a PR, or asks
   for a ship quiz, pre-push hook, architecture quiz, or shipquiz.
 ---
 
 # shipquiz
 
-shipquiz asks architecture questions about the current diff and blocks `git push` until the answers pass. The CLI calls the user's own model provider. Do not send the diff or the API key anywhere else. Do not invent a quiz yourself when the CLI is available.
+shipquiz asks questions about what the current diff changes and blocks `git push` until the answers pass. The CLI calls the user's own model provider. Do not send the diff or the API key anywhere else. Do not invent a quiz yourself when the CLI is available.
 
 ## Before a change ships
 
 1. Check whether `shipquiz` is on `PATH` (`shipquiz version`).
 2. If it is missing, stop and give the user the install commands. Do not skip ahead.
 3. If it is installed, run `shipquiz quiz` in the repository and let the user answer in the terminal.
-4. A passing quiz exits 0. A failing quiz exits 1. Do not treat a failure as done.
-5. Do not set `SHIPQUIZ_SKIP` or pass `--no-verify` unless the user explicitly asks to skip.
+4. A passing quiz exits 0. Choosing to push anyway also exits 0. Any other failed quiz exits 1. Do not treat a failure as done.
+5. Do not set `SHIPQUIZ_SKIP`, pass `--no-verify`, or choose push anyway unless the user explicitly asks to skip.
 
 ## Install
 
@@ -46,13 +46,13 @@ cp -R .claude/skills/shipquiz .agents/skills/
 
 ## Rules the quiz enforces
 
-- Questions stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs.
+- Questions are only about what this diff changes. Do not ask about the rest of the application.
 - In the terminal, press 1, 2, or 3. Feedback is immediate. `?` reveals the answer and counts as incorrect.
-- Ask one question per meaningful architectural decision. Most quizzes have 1–3 questions. Use 4–5 only when the diff has that many distinct architectural decisions. Hard cap is 5.
-- Pass only when the average score is at least 1.5 and no question scored 0. Scores are 0, 1, or 2.
+- Ask one question per distinct change. Most quizzes have 1–3 questions. Use 4–5 only when the diff has that many distinct changes. Hard cap is 5.
+- Pass only when every question is correct.
 - Lockfiles and `skip_paths` in `.shipquiz.toml` skip the quiz. A trivial code change still gets one question.
 - The same diff is cached. A passed diff is not asked again unless the user runs `shipquiz quiz --again`.
-- On a hook timeout, the push is allowed and a warning is printed. A failed quiz still blocks the push.
+- On a hook timeout, the push is allowed and a warning is printed. After a miss, the user can push anyway, retry the missed questions, restart, or generate new questions.
 
 ## Config
 

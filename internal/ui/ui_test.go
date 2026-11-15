@@ -75,6 +75,30 @@ func TestQuestionMarkRevealsAndCountsIncorrect(t *testing.T) {
 	}
 }
 
+func TestChooseMissActionReadsTheMenu(t *testing.T) {
+	var out bytes.Buffer
+	in := bufio.NewReader(strings.NewReader("1\n"))
+	action, err := ChooseMissAction(in, nil, &out, true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action != MissPush {
+		t.Fatalf("action = %v", action)
+	}
+	text := out.String()
+	for _, want := range []string{"push anyway", "retry missed questions", "restart this quiz", "generate new questions"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("menu missing %q:\n%s", want, text)
+		}
+	}
+
+	in = bufio.NewReader(strings.NewReader("2\n"))
+	action, err = ChooseMissAction(in, nil, &bytes.Buffer{}, false, true)
+	if err == nil || action != MissStop {
+		t.Fatalf("hidden retry action=%v err=%v", action, err)
+	}
+}
+
 func TestPassingResultCelebratesWithoutAnimatingAPipe(t *testing.T) {
 	var out bytes.Buffer
 	PrintResult(&out, quiz.Evaluation{Overall: "pass", Score: 2})

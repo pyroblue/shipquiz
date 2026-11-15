@@ -114,14 +114,14 @@ func GradeChoices(questions []Question, answers []Answer) Evaluation {
 			item.Score = 0
 			item.Comment = question.Explanation
 			if item.Comment == "" {
-				item.Comment = "Choose the answer that best explains the architectural decision."
+				item.Comment = "Choose the answer that best explains this change."
 			}
 			ev.Overall = "fail"
 		}
 		ev.PerQuestion = append(ev.PerQuestion, item)
 	}
 	if ev.Overall == "fail" {
-		ev.Feedback = "Review the explanation, then retake the missed questions."
+		ev.Feedback = "Review the explanation, then choose what to do next."
 	}
 	return Enforce(ev, questions, 2)
 }

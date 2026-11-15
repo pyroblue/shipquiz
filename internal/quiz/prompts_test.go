@@ -12,11 +12,11 @@ func TestGenerationPromptUsesArchitectureQualityGates(t *testing.T) {
 	}, "default", 1, 5)
 
 	for _, want := range []string{
-		"Rank them by user impact, security, reliability",
-		"If a candidate does not pass this gate, omit it.",
+		"Do not ask about the rest of the application.",
+		"answerable from this diff alone",
+		"If a candidate is about the application rather than this change, omit it.",
+		"Rank those changes by user impact, security, reliability",
 		"roughly 18 words or fewer",
-		"Avoid implementation verbs",
-		"Reject questions answered by merely restating the diff",
 		"Diff size alone never justifies more questions.",
 		"Give exactly three short, mutually exclusive choices.",
 		"correct_choice",

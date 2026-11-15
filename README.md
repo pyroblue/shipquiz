@@ -90,7 +90,7 @@ skip_paths = ["**/*_test.go", "docs/**", "*.md"]
 question_style = "default" # default | failure-modes | data-flow
 ```
 
-`question_style` is `default`, `failure-modes`, or `data-flow`. Default asks about the change as a whole. Failure-modes asks only what can break. Data-flow asks you to follow one value from one side of the diff to the other.
+`question_style` is `default`, `failure-modes`, or `data-flow`. Default asks about what this diff changes. Failure-modes asks what this change can break. Data-flow asks you to follow one value this change moves.
 
 `shipquiz config set quiz.timeout_seconds 15` writes the global file. Keys you can set: `provider`, `model`, `base_url`, `question_style`, `quiz.min_questions`, `quiz.max_questions`, `quiz.passing_average`, `quiz.timeout_seconds`, `hooks.pre_push`.
 
@@ -102,7 +102,7 @@ The hook is a short shell script. It runs the CLI with the commits git was about
 
 - Empty diffs, lockfiles, and paths in `skip_paths` skip the quiz and let the push continue.
 - Questions are saved by the two commits, the diff, the model, and the question style. A diff you already passed is not asked again.
-- A failed quiz stops the push.
+- A failed quiz stops the push until you pass or choose to push anyway.
 - If the model times out, the hook prints a warning and lets the push through.
 - `SHIPQUIZ_SKIP=1` prints a skip line and lets the push through. `git push --no-verify` skips the hook entirely.
 - Set `hooks.pre_push` to false to leave the hook installed but skip the quiz.
@@ -137,9 +137,9 @@ The same file is in this repo at `skills/shipquiz/SKILL.md` and on the site at [
 
 Each terminal choice is 0 (incorrect) or 2 (correct). The terminal scores choices locally, so grading is immediate and deterministic. Every question must be correct to pass.
 
-Questions have to be about this diff. They stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs. The model asks one question per meaningful architectural decision. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct architectural decisions. The hard cap is 5. Each question has one correct choice and two plausible misconceptions. Even a trivial change gets one question.
+Questions have to be about what this diff changes. They do not ask about the rest of the application. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct changes. The hard cap is 5. Each question has one correct choice and two plausible misconceptions. Even a trivial change gets one question.
 
-After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1. Correct answers are preserved.
+After a failed quiz, you can push anyway, retry the missed questions, restart this quiz, or generate new questions. Push anyway remembers that you read the answers, so the next push of this diff is allowed.
 
 The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches `skip_paths`.
 
