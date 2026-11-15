@@ -2,7 +2,7 @@
 
 You're the captain. Ship only what you can explain.
 
-shipquiz asks a few questions about your change. It can block `git push`, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand the architecture. You use your own API key and model. The diff never goes to a shipquiz server.
+shipquiz asks a few questions about your change. It can block `git push`, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand what changed. You use your own API key and model. The diff never goes to a shipquiz server.
 
 Use a pre-push hook, a GitHub Action, or an agent skill. All three run the same command-line tool, which calls your model provider. shipquiz does not store API keys or diffs.
 
@@ -59,6 +59,8 @@ Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `b
 | `shipquiz github-action` | Ask for the provider, model, and LLM API key, write the workflow, and show the secret to set. |
 | `shipquiz github-action --print` | Print the workflow without asking. |
 | `shipquiz update` | Replace this binary with the latest GitHub release. |
+
+Interactive commands check for a newer release about once a day and ask before replacing this binary. `SHIPQUIZ_NO_UPDATE=1` skips that check. The hook and GitHub Action do not ask.
 
 The hook calls `shipquiz hook-run`. GitHub Actions calls `shipquiz action-run`. Neither is a command you type.
 
