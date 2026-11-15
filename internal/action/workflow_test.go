@@ -13,6 +13,7 @@ func TestWorkflowUsesLLMSecret(t *testing.T) {
 		"secrets.SHIPQUIZ_PROVIDER || 'openai'",
 		"secrets.SHIPQUIZ_MODEL || 'gpt-4.1-mini'",
 		`secrets.SHIPQUIZ_BASE_URL || "https://example.test/v1"`,
+		"refs/pull/${{ github.event.issue.number }}/head",
 		"!contains(github.event.comment.body, '<!-- shipquiz')",
 		`::warning::shipquiz: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped`,
 	} {

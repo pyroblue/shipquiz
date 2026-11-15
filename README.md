@@ -128,6 +128,8 @@ When the reply answers the quiz, the workflow posts what was missing and marks t
 
 The workflow reads those secrets. A hardcoded provider in the YAML is only the fallback when the secret is empty.
 
+Comment replies run the workflow from the default branch (`main`). That file must also read these secrets, or a reply will still use the old hardcoded provider. The Action checks out the pull request head so it grades the right diff.
+
 `shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run`. Pushes to `main` publish a GitHub release the installer downloads.
 
 ## Skill

@@ -206,12 +206,16 @@ func gradeReply(ctx context.Context, gh *GitHub, client llm.Client, cfg config.C
 		fmt.Fprintln(os.Stderr, "shipquiz: no quiz comment found on this pull request")
 		return 1
 	}
-	readCtx, cancelRead := quiz.WithTimeout(ctx, cfg.Quiz.TimeoutSeconds)
-	read, err := quiz.Interpret(readCtx, client, cfg.Model, marker.Quiz.Questions, reply)
-	cancelRead()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "shipquiz: read reply: %v\n", err)
-		return 1
+	read, ok := parseChoiceReply(reply, marker.Quiz.Questions)
+	if !ok {
+		readCtx, cancelRead := quiz.WithTimeout(ctx, cfg.Quiz.TimeoutSeconds)
+		var err error
+		read, err = quiz.Interpret(readCtx, client, cfg.Model, marker.Quiz.Questions, reply)
+		cancelRead()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "shipquiz: read reply: %v\n", err)
+			return 1
+		}
 	}
 	if !read.Attempted {
 		fmt.Println("shipquiz: comment does not answer the quiz")

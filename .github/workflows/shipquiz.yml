@@ -16,10 +16,20 @@ jobs:
     if: github.event_name == 'pull_request' || (github.event_name == 'issue_comment' && github.event.issue.pull_request && !contains(github.event.comment.body, '<!-- shipquiz'))
     runs-on: ubuntu-latest
     steps:
+      - name: Resolve checkout ref
+        id: target
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "ref=${{ github.event.pull_request.head.sha }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "ref=refs/pull/${{ github.event.issue.number }}/head" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          ref: ${{ steps.target.outputs.ref }}
 
       - name: Install shipquiz
         run: |
