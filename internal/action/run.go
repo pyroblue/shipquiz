@@ -65,8 +65,8 @@ func Run(ctx context.Context) int {
 	}
 	apiKey := strings.TrimSpace(os.Getenv("SHIPQUIZ_LLM_API_KEY"))
 	if apiKey == "" {
-		fmt.Fprintln(os.Stderr, "shipquiz: set the SHIPQUIZ_LLM_API_KEY secret")
-		return 1
+		warnMissingKey()
+		return 0
 	}
 	client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
 	if err != nil {
@@ -95,6 +95,15 @@ func Run(ctx context.Context) int {
 	default:
 		fmt.Fprintf(os.Stderr, "shipquiz: unsupported event %q\n", eventName)
 		return 1
+	}
+}
+
+// warnMissingKey tells the log the quiz was skipped. The job stays green.
+func warnMissingKey() {
+	const message = "shipquiz: warning: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped"
+	fmt.Fprintln(os.Stderr, message)
+	if os.Getenv("GITHUB_ACTIONS") == "true" {
+		fmt.Println("::warning::" + message)
 	}
 }
 
