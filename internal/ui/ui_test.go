@@ -26,8 +26,28 @@ func TestWrapKeepsLinesShort(t *testing.T) {
 }
 
 func TestQuestionLabelKeepsOriginalNumberOnRetry(t *testing.T) {
-	if got := questionLabel("q4", 1); got != "4" {
+	if got := questionLabel("q4", 1); got != "Q4" {
 		t.Fatalf("label = %q", got)
+	}
+}
+
+func TestPrintIntroLabelsSizeAndSummary(t *testing.T) {
+	var out bytes.Buffer
+	PrintIntro(&out, quiz.Generated{
+		Size:      "medium",
+		Summary:   "Action logs unset env overlays.",
+		Questions: []quiz.Question{{}, {}, {}},
+	})
+	got := out.String()
+	for _, want := range []string{
+		"Change Size: Medium",
+		"3 questions",
+		"Diff Summary:",
+		"Action logs unset env overlays.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q:\n%s", want, got)
+		}
 	}
 }
 
@@ -72,6 +92,30 @@ func TestQuestionMarkRevealsAndCountsIncorrect(t *testing.T) {
 	}
 	if !strings.Contains(out.String(), "2 · The API") {
 		t.Fatalf("output:\n%s", out.String())
+	}
+}
+
+func TestChooseMissActionReadsTheMenu(t *testing.T) {
+	var out bytes.Buffer
+	in := bufio.NewReader(strings.NewReader("1\n"))
+	action, err := ChooseMissAction(in, nil, &out, true, true)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if action != MissPush {
+		t.Fatalf("action = %v", action)
+	}
+	text := out.String()
+	for _, want := range []string{"push anyway", "retry missed questions", "restart this quiz", "generate new questions"} {
+		if !strings.Contains(text, want) {
+			t.Fatalf("menu missing %q:\n%s", want, text)
+		}
+	}
+
+	in = bufio.NewReader(strings.NewReader("2\n"))
+	action, err = ChooseMissAction(in, nil, &bytes.Buffer{}, false, true)
+	if err == nil || action != MissStop {
+		t.Fatalf("hidden retry action=%v err=%v", action, err)
 	}
 }
 

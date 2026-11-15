@@ -52,6 +52,29 @@ func TestXAISendsLowReasoningEffort(t *testing.T) {
 	}
 }
 
+func TestOpenAICompatibleSendsJSONObjectFormat(t *testing.T) {
+	var body map[string]any
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if err := json.NewDecoder(r.Body).Decode(&body); err != nil {
+			t.Errorf("decode: %v", err)
+		}
+		io.WriteString(w, `{"choices":[{"message":{"content":"{}"}}]}`)
+	}))
+	defer srv.Close()
+
+	client, err := New("openai", srv.URL, "test-key")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if _, err := client.Complete(context.Background(), Request{Model: "m", User: "return json", JSONObject: true}); err != nil {
+		t.Fatal(err)
+	}
+	format, _ := body["response_format"].(map[string]any)
+	if format["type"] != "json_object" {
+		t.Fatalf("response_format = %#v", body["response_format"])
+	}
+}
+
 func TestOpenAIAndGeminiSendLowReasoningEffort(t *testing.T) {
 	for _, provider := range []string{"openai", "gemini"} {
 		t.Run(provider, func(t *testing.T) {

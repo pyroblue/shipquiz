@@ -20,11 +20,13 @@ func PrintIntro(out io.Writer, generated quiz.Generated) {
 	if len(generated.Questions) == 1 {
 		label = "question"
 	}
-	size := generated.Size
+	size := strings.TrimSpace(generated.Size)
 	if size == "" {
 		size = "change"
 	}
-	fmt.Fprintf(out, "\n%s  %s\n", Stamp(out, size), Muted(out, fmt.Sprintf("· %d %s", len(generated.Questions), label)))
+	fmt.Fprintf(out, "\n%s\n", Stamp(out, "Change Size: "+titleWord(size)))
+	fmt.Fprintln(out, Muted(out, fmt.Sprintf("%d %s", len(generated.Questions), label)))
+	fmt.Fprintln(out, Stamp(out, "Diff Summary:"))
 	writeWrapped(out, "", 0, generated.Summary)
 }
 
@@ -122,9 +124,17 @@ func showChoiceFeedback(out io.Writer, question quiz.Question, choice int) {
 func questionLabel(id string, fallback int) string {
 	id = strings.TrimSpace(id)
 	if len(id) > 1 && (id[0] == 'q' || id[0] == 'Q') {
-		return id[1:]
+		return "Q" + id[1:]
 	}
-	return fmt.Sprintf("%d", fallback)
+	return fmt.Sprintf("Q%d", fallback)
+}
+
+// titleWord capitalizes the first letter of a size label.
+func titleWord(word string) string {
+	if word == "" {
+		return word
+	}
+	return strings.ToUpper(word[:1]) + word[1:]
 }
 
 func writeQuestion(out io.Writer, label, question string) {
@@ -172,6 +182,97 @@ func wrap(text string, width int) []string {
 		lines = append(lines, cur)
 	}
 	return lines
+}
+
+// MissAction is the developer's choice after a failed quiz.
+type MissAction int
+
+const (
+	// MissStop blocks the push. The developer cancelled the menu.
+	MissStop MissAction = iota
+	// MissPush allows the push after the developer has read the answers.
+	MissPush
+	// MissRetry asks only the questions they missed.
+	MissRetry
+	// MissRestart asks every question in this quiz again.
+	MissRestart
+	// MissNew generates a new quiz for the same diff.
+	MissNew
+)
+
+// ChooseMissAction reads the next step after a failed quiz.
+// allowRetry is set when at least one question was missed. allowNew is set when a model call is available.
+func ChooseMissAction(in *bufio.Reader, tty *os.File, out io.Writer, allowRetry, allowNew bool) (MissAction, error) {
+	fmt.Fprintln(out)
+	fmt.Fprintln(out, Stamp(out, "What next?"))
+	fmt.Fprintln(out, "   "+Mark(out, "1")+"  push anyway")
+	if allowRetry {
+		fmt.Fprintln(out, "   "+Mark(out, "2")+"  retry missed questions")
+	}
+	fmt.Fprintln(out, "   "+Mark(out, "3")+"  restart this quiz")
+	if allowNew {
+		fmt.Fprintln(out, "   "+Mark(out, "4")+"  generate new questions")
+	}
+	fmt.Fprint(out, "   "+Stamp(out, ">")+" ")
+	action, err := readMissAction(in, tty, out, allowRetry, allowNew)
+	return action, err
+}
+
+func readMissAction(in *bufio.Reader, tty *os.File, out io.Writer, allowRetry, allowNew bool) (MissAction, error) {
+	if tty != nil && term.IsTerminal(int(tty.Fd())) {
+		state, err := term.MakeRaw(int(tty.Fd()))
+		if err == nil {
+			defer term.Restore(int(tty.Fd()), state)
+			for {
+				b, readErr := in.ReadByte()
+				if action, ok := missActionFromKey(b, allowRetry, allowNew); ok {
+					fmt.Fprintf(out, "%c\r\n", b)
+					return action, nil
+				}
+				switch b {
+				case 3:
+					fmt.Fprint(out, "\r\n")
+					return MissStop, errors.New("quiz cancelled")
+				case 4:
+					fmt.Fprint(out, "\r\n")
+					return MissStop, io.EOF
+				}
+				if readErr != nil {
+					fmt.Fprint(out, "\r\n")
+					return MissStop, readErr
+				}
+			}
+		}
+	}
+	line, err := in.ReadString('\n')
+	choice := strings.TrimSpace(line)
+	if choice != "" {
+		if action, ok := missActionFromKey(choice[0], allowRetry, allowNew); ok {
+			return action, err
+		}
+	}
+	if err != nil {
+		return MissStop, err
+	}
+	return MissStop, errors.New("choose 1, 2, 3, or 4")
+}
+
+func missActionFromKey(b byte, allowRetry, allowNew bool) (MissAction, bool) {
+	switch b {
+	case '1':
+		return MissPush, true
+	case '2':
+		if allowRetry {
+			return MissRetry, true
+		}
+	case '3':
+		return MissRestart, true
+	case '4':
+		if allowNew {
+			return MissNew, true
+		}
+	}
+	return MissStop, false
 }
 
 // PrintResult shows the grade after the local pass rule has been applied.

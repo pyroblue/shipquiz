@@ -17,10 +17,11 @@ import (
 
 // Request is one completion.
 type Request struct {
-	Model     string
-	System    string
-	User      string
-	MaxTokens int
+	Model      string
+	System     string
+	User       string
+	MaxTokens  int
+	JSONObject bool // ask OpenAI-compatible hosts for a JSON object
 }
 
 // Client generates text and lists models for one provider.
@@ -188,20 +189,21 @@ type openAIClient struct {
 }
 
 func (c *openAIClient) Complete(ctx context.Context, req Request) (string, error) {
-	text, err := c.complete(ctx, req, true, true)
+	text, err := c.complete(ctx, req, true, true, req.JSONObject)
 	if err == nil {
 		return text, nil
 	}
 	msg := err.Error()
 	dropTokens := strings.Contains(msg, "max_completion_tokens")
 	dropReason := c.reasoning != "" && strings.Contains(msg, "reasoning_effort")
-	if dropTokens || dropReason {
-		return c.complete(ctx, req, !dropTokens, !dropReason)
+	dropJSON := req.JSONObject && (strings.Contains(msg, "response_format") || strings.Contains(msg, "json_object"))
+	if dropTokens || dropReason || dropJSON {
+		return c.complete(ctx, req, !dropTokens, !dropReason, req.JSONObject && !dropJSON)
 	}
 	return "", err
 }
 
-func (c *openAIClient) complete(ctx context.Context, req Request, completionTokens, withReasoning bool) (string, error) {
+func (c *openAIClient) complete(ctx context.Context, req Request, completionTokens, withReasoning, jsonObject bool) (string, error) {
 	body := map[string]any{
 		"model": req.Model,
 		"messages": []map[string]string{
@@ -216,6 +218,9 @@ func (c *openAIClient) complete(ctx context.Context, req Request, completionToke
 	}
 	if withReasoning && c.reasoning != "" {
 		body["reasoning_effort"] = c.reasoning
+	}
+	if jsonObject {
+		body["response_format"] = map[string]string{"type": "json_object"}
 	}
 	raw, err := json.Marshal(body)
 	if err != nil {

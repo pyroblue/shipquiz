@@ -109,7 +109,7 @@ export default function DocsPage() {
             <code className="font-mono text-ink">default</code>,{" "}
             <code className="font-mono text-ink">failure-modes</code>, or{" "}
             <code className="font-mono text-ink">data-flow</code>.
-            Default asks about the change as a whole. Failure-modes asks only what can break. Data-flow asks you to follow one value from one side of the diff to the other.
+            Default asks about what this diff changes. Failure-modes asks what this change can break. Data-flow asks you to follow one value this change moves.
           </p>
           <p className="leading-relaxed text-muted">
             <code className="font-mono text-ink">shipquiz config set quiz.timeout_seconds 15</code> writes the global file.
@@ -168,9 +168,11 @@ export default function DocsPage() {
           />
           <p className="leading-relaxed text-muted">
             When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed.
-            A failed quiz also fails the job. The repository secret is{" "}
-            <code className="font-mono text-ink">SHIPQUIZ_LLM_API_KEY</code>, and its value is the model provider key.
-            If that secret is missing, the job warns and continues.
+            A failed quiz also fails the job. Set{" "}
+            <code className="font-mono text-ink">SHIPQUIZ_LLM_API_KEY</code> to the model provider key.
+            Optional secrets <code className="font-mono text-ink">SHIPQUIZ_PROVIDER</code> and{" "}
+            <code className="font-mono text-ink">SHIPQUIZ_MODEL</code> override the workflow defaults.
+            If the API key is missing, the job warns and continues.
           </p>
           <CodeBlock label=".github/workflows/shipquiz.yml" code={workflowYaml.trim()} />
           <p className="text-sm leading-relaxed text-muted">
@@ -203,10 +205,10 @@ export default function DocsPage() {
             immediate and deterministic. Every question must be correct to pass.
           </p>
           <p className="leading-relaxed text-muted">
-            Questions have to be about this diff. They stay at the system and product level: purpose, ownership,
-            boundaries, guarantees, failure behavior, and major trade-offs. Most quizzes have 1–3 questions. Diffs
-            with four or five distinct architectural decisions can have 4–5. Each question has one correct choice and
-            two plausible misconceptions. After a failed quiz, shipquiz offers to retake only the incorrect questions.
+            Questions have to be about what this diff changes. They do not ask about the rest of the application.
+            Most quizzes have 1–3 questions. Diffs with four or five distinct changes can have 4–5. Each question has
+            one correct choice and two plausible misconceptions. After a failed quiz, you can push anyway, retry the
+            missed questions, restart this quiz, or generate new questions.
             The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches{" "}
             <code className="font-mono text-ink">skip_paths</code>.
           </p>

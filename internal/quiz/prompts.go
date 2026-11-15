@@ -8,7 +8,7 @@ import (
 
 const generationSystem = "You output only JSON. No markdown fences, no preamble."
 
-const generationTemplate = `You are an expert software architect. Generate questions that test whether the developer understands the important architectural decisions in this diff.
+const generationTemplate = `You are quizzing a developer on the change in this diff. Every question must be about something this diff adds, removes, or changes. Do not ask about the rest of the application.
 
 First classify the change:
 - Trivial: mechanical, tests/docs/config/formatting, or < ~15 substantive lines
@@ -24,34 +24,35 @@ Question limits:
 - Medium → usually up to 3; 4 only for four distinct decisions
 - Large → usually up to 3; 4 or 5 only for that many distinct decisions
 
-These are maximums, not targets. Ask one question per distinct, meaningful
-architectural decision. Return fewer questions when the diff has fewer decisions.
+These are maximums, not targets. Ask one question per distinct change in the diff.
+Return fewer questions when the diff changes fewer things.
 Diff size alone never justifies more questions.
 
 Select questions:
-1. Privately identify the architectural decisions in the diff.
-2. Rank them by user impact, security, reliability, and long-term maintenance.
-3. Group related edits into one decision.
-4. Discard weak candidates. Do not output this analysis.
+1. Privately list what this diff adds, removes, or changes.
+2. Rank those changes by user impact, security, reliability, and how hard they are to get wrong.
+3. Group related edits into one change.
+4. Discard anything the diff does not change. Do not output this analysis.
 
-Importance gate:
-- A question must explain user-visible behavior, a system boundary, a security or reliability guarantee, or a long-lived design trade-off.
-- Ask what a maintainer should understand months later, not how this patch happens to implement it today.
-- If a candidate does not pass this gate, omit it.
+Scope gate:
+- A question must be answerable from this diff alone.
+- Ask about the behavior, boundary, guarantee, or trade-off that this change introduces or alters.
+- Do not ask about unchanged architecture, neighboring systems, or history the diff does not touch.
+- If a candidate is about the application rather than this change, omit it.
 
 Clarity gate:
-- Write for a developer who understands the product but has not memorized this patch.
+- Write for a developer reading this diff.
 - Name the subject in plain language and ask one thing.
 - Keep each question to one sentence and roughly 18 words or fewer.
 - Avoid “why X but Y?” constructions.
-- Avoid implementation verbs such as strip, marshal, render, retry, or pass.
-- Avoid package, function, type, field, parameter, provider, and keyboard-shortcut names unless essential to the architecture.
-- Reject questions answered by merely restating the diff or a product requirement.
+- Avoid line-level trivia and syntax.
+- Reject questions that only quote the diff without asking what the change does.
 - Reject questions about quiz mechanics unless they define important user behavior.
 
 Choices:
 - Give exactly three short, mutually exclusive choices.
 - One choice is correct. The other two are plausible misconceptions.
+- correct_choice is 1-based: 1, 2, or 3. Never use 0.
 - Avoid trick wording, “all of the above,” and obviously silly distractors.
 - Keep choices similar in length and vary the position of the correct choice.
 - explanation teaches why the correct choice is right in one short sentence.
@@ -59,8 +60,8 @@ Choices:
 Rules:
 - Produce between %d and %d questions. Never exceed %d. Never return zero questions.
 - Question style: %s.
-- If the style is failure-modes, ask about an important failure and the guarantee that contains it.
-- If the style is data-flow, ask about an important system boundary that data crosses.
+- If the style is failure-modes, ask about a failure this change introduces or closes.
+- If the style is data-flow, ask about a value this change moves across a boundary in the diff.
 - If the style is default, follow the rules above as written.
 - Output only JSON:
 

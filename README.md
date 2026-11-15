@@ -2,7 +2,7 @@
 
 You're the captain. Ship only what you can explain.
 
-shipquiz asks a few questions about your change. It can block `git push`, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand the architecture. You use your own API key and model. The diff never goes to a shipquiz server.
+shipquiz asks a few questions about your change. It can block `git push`, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand what changed. You use your own API key and model. The diff never goes to a shipquiz server.
 
 Use a pre-push hook, a GitHub Action, or an agent skill. All three run the same command-line tool, which calls your model provider. shipquiz does not store API keys or diffs.
 
@@ -60,6 +60,8 @@ Set `base_url` when you use a host that speaks the OpenAI API. For Anthropic, `b
 | `shipquiz github-action --print` | Print the workflow without asking. |
 | `shipquiz update` | Replace this binary with the latest GitHub release. |
 
+Interactive commands check for a newer release about once a day and ask before replacing this binary. `SHIPQUIZ_NO_UPDATE=1` skips that check. The hook and GitHub Action do not ask.
+
 The hook calls `shipquiz hook-run`. GitHub Actions calls `shipquiz action-run`. Neither is a command you type.
 
 ## Config
@@ -90,7 +92,7 @@ skip_paths = ["**/*_test.go", "docs/**", "*.md"]
 question_style = "default" # default | failure-modes | data-flow
 ```
 
-`question_style` is `default`, `failure-modes`, or `data-flow`. Default asks about the change as a whole. Failure-modes asks only what can break. Data-flow asks you to follow one value from one side of the diff to the other.
+`question_style` is `default`, `failure-modes`, or `data-flow`. Default asks about what this diff changes. Failure-modes asks what this change can break. Data-flow asks you to follow one value this change moves.
 
 `shipquiz config set quiz.timeout_seconds 15` writes the global file. Keys you can set: `provider`, `model`, `base_url`, `question_style`, `quiz.min_questions`, `quiz.max_questions`, `quiz.passing_average`, `quiz.timeout_seconds`, `hooks.pre_push`.
 
@@ -102,7 +104,7 @@ The hook is a short shell script. It runs the CLI with the commits git was about
 
 - Empty diffs, lockfiles, and paths in `skip_paths` skip the quiz and let the push continue.
 - Questions are saved by the two commits, the diff, the model, and the question style. A diff you already passed is not asked again.
-- A failed quiz stops the push.
+- A failed quiz stops the push until you pass or choose to push anyway.
 - If the model times out, the hook prints a warning and lets the push through.
 - `SHIPQUIZ_SKIP=1` prints a skip line and lets the push through. `git push --no-verify` skips the hook entirely.
 - Set `hooks.pre_push` to false to leave the hook installed but skip the quiz.
@@ -115,9 +117,20 @@ On a pull request, the Action posts the questions as a comment and opens a check
 
 Reply with the selected numbers in question order, such as `2, 1, 3`. A comment that is not an answer is left alone.
 
-When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key. If that secret is missing, the job warns and continues.
+When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. Repository secrets:
 
-`shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run` with `SHIPQUIZ_LLM_API_KEY`, `SHIPQUIZ_PROVIDER`, and `SHIPQUIZ_MODEL`. Pushes to `main` publish a GitHub release the installer downloads.
+| Secret | Purpose |
+| --- | --- |
+| `SHIPQUIZ_LLM_API_KEY` | Model provider key. Required. If missing, the job warns and continues. |
+| `SHIPQUIZ_PROVIDER` | `anthropic`, `openai`, `gemini`, or `xai`. Overrides the workflow default. |
+| `SHIPQUIZ_MODEL` | Model id for that provider. Overrides the workflow default. |
+| `SHIPQUIZ_BASE_URL` | Optional custom API root. |
+
+The workflow reads those secrets. A hardcoded provider in the YAML is only the fallback when the secret is empty.
+
+Comment replies run the workflow from the default branch (`main`). That file must also read these secrets, or a reply will still use the old hardcoded provider. The Action checks out the pull request head so it grades the right diff.
+
+`shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run`. Pushes to `main` publish a GitHub release the installer downloads.
 
 ## Skill
 
@@ -137,9 +150,9 @@ The same file is in this repo at `skills/shipquiz/SKILL.md` and on the site at [
 
 Each terminal choice is 0 (incorrect) or 2 (correct). The terminal scores choices locally, so grading is immediate and deterministic. Every question must be correct to pass.
 
-Questions have to be about this diff. They stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs. The model asks one question per meaningful architectural decision. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct architectural decisions. The hard cap is 5. Each question has one correct choice and two plausible misconceptions. Even a trivial change gets one question.
+Questions have to be about what this diff changes. They do not ask about the rest of the application. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct changes. The hard cap is 5. Each question has one correct choice and two plausible misconceptions. Even a trivial change gets one question.
 
-After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1. Correct answers are preserved.
+After a failed quiz, you can push anyway, retry the missed questions, restart this quiz, or generate new questions. Push anyway remembers that you read the answers, so the next push of this diff is allowed.
 
 The quiz is skipped only when the diff is empty, when it only touches lockfiles, or when every file matches `skip_paths`.
 
