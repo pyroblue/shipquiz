@@ -20,11 +20,13 @@ func PrintIntro(out io.Writer, generated quiz.Generated) {
 	if len(generated.Questions) == 1 {
 		label = "question"
 	}
-	size := generated.Size
+	size := strings.TrimSpace(generated.Size)
 	if size == "" {
 		size = "change"
 	}
-	fmt.Fprintf(out, "\n%s  %s\n", Stamp(out, size), Muted(out, fmt.Sprintf("· %d %s", len(generated.Questions), label)))
+	fmt.Fprintf(out, "\n%s\n", Stamp(out, "Change Size: "+titleWord(size)))
+	fmt.Fprintln(out, Muted(out, fmt.Sprintf("%d %s", len(generated.Questions), label)))
+	fmt.Fprintln(out, Stamp(out, "Diff Summary:"))
 	writeWrapped(out, "", 0, generated.Summary)
 }
 
@@ -122,9 +124,17 @@ func showChoiceFeedback(out io.Writer, question quiz.Question, choice int) {
 func questionLabel(id string, fallback int) string {
 	id = strings.TrimSpace(id)
 	if len(id) > 1 && (id[0] == 'q' || id[0] == 'Q') {
-		return id[1:]
+		return "Q" + id[1:]
 	}
-	return fmt.Sprintf("%d", fallback)
+	return fmt.Sprintf("Q%d", fallback)
+}
+
+// titleWord capitalizes the first letter of a size label.
+func titleWord(word string) string {
+	if word == "" {
+		return word
+	}
+	return strings.ToUpper(word[:1]) + word[1:]
 }
 
 func writeQuestion(out io.Writer, label, question string) {

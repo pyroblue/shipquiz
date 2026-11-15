@@ -26,8 +26,28 @@ func TestWrapKeepsLinesShort(t *testing.T) {
 }
 
 func TestQuestionLabelKeepsOriginalNumberOnRetry(t *testing.T) {
-	if got := questionLabel("q4", 1); got != "4" {
+	if got := questionLabel("q4", 1); got != "Q4" {
 		t.Fatalf("label = %q", got)
+	}
+}
+
+func TestPrintIntroLabelsSizeAndSummary(t *testing.T) {
+	var out bytes.Buffer
+	PrintIntro(&out, quiz.Generated{
+		Size:      "medium",
+		Summary:   "Action logs unset env overlays.",
+		Questions: []quiz.Question{{}, {}, {}},
+	})
+	got := out.String()
+	for _, want := range []string{
+		"Change Size: Medium",
+		"3 questions",
+		"Diff Summary:",
+		"Action logs unset env overlays.",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("missing %q:\n%s", want, got)
+		}
 	}
 }
 
