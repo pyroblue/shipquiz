@@ -69,3 +69,59 @@ func TestGenerateKeepsInvalidModelResponse(t *testing.T) {
 		t.Fatal(text)
 	}
 }
+
+func TestGenerateAcceptsZeroBasedCorrectChoice(t *testing.T) {
+	raw := `{
+		"size":"small",
+		"summary":"Logs missing Action env.",
+		"questions":[{
+			"id":"q2",
+			"question":"What should operators always see?",
+			"choices":["Provider and model","Only success","Raw config"],
+			"correct_choice":0,
+			"explanation":"The Action logs the effective target."
+		}]
+	}`
+	got, err := Generate(context.Background(), fakeClient{text: raw}, "model", Diff{Text: "+line\n"}, "default", 1, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if got.Questions[0].CorrectChoice < 1 || got.Questions[0].CorrectChoice > 3 {
+		t.Fatalf("correct_choice = %d", got.Questions[0].CorrectChoice)
+	}
+	if got.Questions[0].Choices[got.Questions[0].CorrectChoice-1] != "Provider and model" {
+		t.Fatalf("question = %#v", got.Questions[0])
+	}
+}
+
+type sequenceClient struct {
+	replies []string
+	calls   int
+}
+
+func (s *sequenceClient) Complete(context.Context, llm.Request) (string, error) {
+	if s.calls >= len(s.replies) {
+		return "", errors.New("no more replies")
+	}
+	text := s.replies[s.calls]
+	s.calls++
+	return text, nil
+}
+
+func (s *sequenceClient) ListModels(context.Context) ([]string, error) {
+	return []string{"model"}, nil
+}
+
+func TestGenerateRetriesInvalidQuizOnce(t *testing.T) {
+	client := &sequenceClient{replies: []string{
+		`{"questions":[{"id":"q1","question":"Who?","choices":["A","B"],"correct_choice":1}]}`,
+		`{"size":"tiny","summary":"Fixed.","questions":[{"id":"q1","question":"Who owns it?","choices":["CLI","API","Cache"],"correct_choice":2,"explanation":"The API owns it."}]}`,
+	}}
+	got, err := Generate(context.Background(), client, "model", Diff{Text: "+line\n"}, "default", 1, 5)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if client.calls != 2 || got.Questions[0].Choices[got.Questions[0].CorrectChoice-1] != "API" {
+		t.Fatalf("calls=%d got=%#v", client.calls, got)
+	}
+}

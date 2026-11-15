@@ -223,7 +223,38 @@ func Normalize(g Generated, minQ, maxQ int) Generated {
 	g.Questions = questions
 	g.Size = strings.TrimSpace(g.Size)
 	g.Summary = strings.TrimSpace(g.Summary)
+	FixChoiceNumbers(&g)
 	return g
+}
+
+// FixChoiceNumbers converts 0-based correct_choice values to 1-based.
+func FixChoiceNumbers(g *Generated) {
+	if !zeroBasedChoices(*g) {
+		return
+	}
+	for i := range g.Questions {
+		choice := g.Questions[i].CorrectChoice
+		if len(g.Questions[i].Choices) == 3 && choice >= 0 && choice <= 2 {
+			g.Questions[i].CorrectChoice = choice + 1
+		}
+	}
+}
+
+// zeroBasedChoices is true when every keyed question uses indexes 0–2 and at least one is 0.
+func zeroBasedChoices(g Generated) bool {
+	sawZero := false
+	for _, question := range g.Questions {
+		if len(question.Choices) != 3 {
+			continue
+		}
+		if question.CorrectChoice < 0 || question.CorrectChoice > 2 {
+			return false
+		}
+		if question.CorrectChoice == 0 {
+			sawZero = true
+		}
+	}
+	return sawZero
 }
 
 func itoa(n int) string {

@@ -19,7 +19,8 @@ func TestGenerationPromptUsesArchitectureQualityGates(t *testing.T) {
 		"roughly 18 words or fewer",
 		"Diff size alone never justifies more questions.",
 		"Give exactly three short, mutually exclusive choices.",
-		"correct_choice",
+		"correct_choice is 1-based",
+		"Never use 0",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q", want)

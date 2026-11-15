@@ -52,6 +52,7 @@ Clarity gate:
 Choices:
 - Give exactly three short, mutually exclusive choices.
 - One choice is correct. The other two are plausible misconceptions.
+- correct_choice is 1-based: 1, 2, or 3. Never use 0.
 - Avoid trick wording, “all of the above,” and obviously silly distractors.
 - Keep choices similar in length and vary the position of the correct choice.
 - explanation teaches why the correct choice is right in one short sentence.

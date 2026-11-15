@@ -68,6 +68,29 @@ func TestGradeChoicesIsDeterministic(t *testing.T) {
 	}
 }
 
+func TestFixChoiceNumbersConvertsZeroBasedIndexes(t *testing.T) {
+	g := Normalize(Generated{Questions: []Question{
+		{
+			ID:            "q1",
+			Question:      "If Action env vars are unset, what happens?",
+			Choices:       []string{"Fail", "Keep file config and warn", "Hardcode silently"},
+			CorrectChoice: 1,
+		},
+		{
+			ID:            "q2",
+			Question:      "What should operators always see?",
+			Choices:       []string{"Provider, model, and base URL", "Only success", "Raw config"},
+			CorrectChoice: 0,
+		},
+	}}, 1, 5)
+	if g.Questions[0].CorrectChoice != 2 || g.Questions[1].CorrectChoice != 1 {
+		t.Fatalf("questions = %#v", g.Questions)
+	}
+	if !MultipleChoiceReady(g) {
+		t.Fatal(ChoiceIssue(g))
+	}
+}
+
 func TestRotateChoicesKeepsCorrectAnswer(t *testing.T) {
 	g := Generated{Questions: []Question{{
 		Question:      "Which boundary owns this?",
