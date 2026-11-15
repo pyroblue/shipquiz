@@ -168,9 +168,11 @@ export default function DocsPage() {
           />
           <p className="leading-relaxed text-muted">
             When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed.
-            A failed quiz also fails the job. The repository secret is{" "}
-            <code className="font-mono text-ink">SHIPQUIZ_LLM_API_KEY</code>, and its value is the model provider key.
-            If that secret is missing, the job warns and continues.
+            A failed quiz also fails the job. Set{" "}
+            <code className="font-mono text-ink">SHIPQUIZ_LLM_API_KEY</code> to the model provider key.
+            Optional secrets <code className="font-mono text-ink">SHIPQUIZ_PROVIDER</code> and{" "}
+            <code className="font-mono text-ink">SHIPQUIZ_MODEL</code> override the workflow defaults.
+            If the API key is missing, the job warns and continues.
           </p>
           <CodeBlock label=".github/workflows/shipquiz.yml" code={workflowYaml.trim()} />
           <p className="text-sm leading-relaxed text-muted">

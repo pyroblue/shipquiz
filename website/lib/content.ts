@@ -69,8 +69,9 @@ jobs:
       - name: Run the quiz
         env:
           SHIPQUIZ_LLM_API_KEY: \${{ secrets.SHIPQUIZ_LLM_API_KEY }}
-          SHIPQUIZ_PROVIDER: anthropic
-          SHIPQUIZ_MODEL: claude-sonnet-4-5
+          SHIPQUIZ_PROVIDER: \${{ secrets.SHIPQUIZ_PROVIDER || 'anthropic' }}
+          SHIPQUIZ_MODEL: \${{ secrets.SHIPQUIZ_MODEL || 'claude-sonnet-4-5' }}
+          SHIPQUIZ_BASE_URL: \${{ secrets.SHIPQUIZ_BASE_URL }}
           GITHUB_TOKEN: \${{ secrets.GITHUB_TOKEN }}
         run: |
           if [ -z "$SHIPQUIZ_LLM_API_KEY" ]; then

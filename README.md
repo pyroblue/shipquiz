@@ -117,9 +117,18 @@ On a pull request, the Action posts the questions as a comment and opens a check
 
 Reply with the selected numbers in question order, such as `2, 1, 3`. A comment that is not an answer is left alone.
 
-When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key. If that secret is missing, the job warns and continues.
+When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. Repository secrets:
 
-`shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run` with `SHIPQUIZ_LLM_API_KEY`, `SHIPQUIZ_PROVIDER`, and `SHIPQUIZ_MODEL`. Pushes to `main` publish a GitHub release the installer downloads.
+| Secret | Purpose |
+| --- | --- |
+| `SHIPQUIZ_LLM_API_KEY` | Model provider key. Required. If missing, the job warns and continues. |
+| `SHIPQUIZ_PROVIDER` | `anthropic`, `openai`, `gemini`, or `xai`. Overrides the workflow default. |
+| `SHIPQUIZ_MODEL` | Model id for that provider. Overrides the workflow default. |
+| `SHIPQUIZ_BASE_URL` | Optional custom API root. |
+
+The workflow reads those secrets. A hardcoded provider in the YAML is only the fallback when the secret is empty.
+
+`shipquiz github-action` asks which provider and model to use, reads the LLM API key, writes `.github/workflows/shipquiz.yml`, and prints the secret to set. It can set that secret with `gh` when the repo has a GitHub remote. The key is not written into the workflow file. `--print` prints the file without asking. This repo already has that file. The Action installs with `install.sh --no-setup` and runs `shipquiz action-run`. Pushes to `main` publish a GitHub release the installer downloads.
 
 ## Skill
 

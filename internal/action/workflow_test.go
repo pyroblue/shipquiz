@@ -10,14 +10,14 @@ func TestWorkflowUsesLLMSecret(t *testing.T) {
 	got := Workflow("openai", "gpt-4.1-mini", "https://example.test/v1")
 	for _, want := range []string{
 		"SHIPQUIZ_LLM_API_KEY",
-		"SHIPQUIZ_PROVIDER: openai",
-		"SHIPQUIZ_MODEL: gpt-4.1-mini",
-		`SHIPQUIZ_BASE_URL: "https://example.test/v1"`,
+		"secrets.SHIPQUIZ_PROVIDER || 'openai'",
+		"secrets.SHIPQUIZ_MODEL || 'gpt-4.1-mini'",
+		`secrets.SHIPQUIZ_BASE_URL || "https://example.test/v1"`,
 		"!contains(github.event.comment.body, '<!-- shipquiz')",
 		`::warning::shipquiz: SHIPQUIZ_LLM_API_KEY is not set, so this quiz was skipped`,
 	} {
 		if !strings.Contains(got, want) {
-			t.Fatalf("workflow missing %q", want)
+			t.Fatalf("workflow missing %q\n%s", want, got)
 		}
 	}
 	if strings.Contains(got, "q1:") || strings.Contains(got, "SHIPQUIZ_API_KEY:") {
