@@ -112,16 +112,40 @@ func configForAction(repoRoot string) (config.Config, error) {
 	if err != nil {
 		return cfg, err
 	}
+	cfg = applyActionEnv(cfg)
+	logActionConfig(cfg)
+	return cfg, nil
+}
+
+// applyActionEnv overlays Action env vars on the loaded config.
+func applyActionEnv(cfg config.Config) config.Config {
 	if provider := strings.TrimSpace(os.Getenv("SHIPQUIZ_PROVIDER")); provider != "" {
 		cfg.Provider = provider
+	} else {
+		fmt.Fprintf(os.Stderr, "shipquiz: SHIPQUIZ_PROVIDER is not set; using %s\n", cfg.Provider)
 	}
 	if model := strings.TrimSpace(os.Getenv("SHIPQUIZ_MODEL")); model != "" {
 		cfg.Model = model
+	} else {
+		fmt.Fprintf(os.Stderr, "shipquiz: SHIPQUIZ_MODEL is not set; using %s\n", cfg.Model)
 	}
 	if base := strings.TrimSpace(os.Getenv("SHIPQUIZ_BASE_URL")); base != "" {
 		cfg.BaseURL = base
+	} else if cfg.BaseURL != "" {
+		fmt.Fprintf(os.Stderr, "shipquiz: SHIPQUIZ_BASE_URL is not set; using %s\n", cfg.BaseURL)
+	} else {
+		fmt.Fprintln(os.Stderr, "shipquiz: SHIPQUIZ_BASE_URL is not set; using the provider default")
 	}
-	return cfg, nil
+	return cfg
+}
+
+// logActionConfig prints the provider settings the Action will call.
+func logActionConfig(cfg config.Config) {
+	if cfg.BaseURL != "" {
+		fmt.Fprintf(os.Stderr, "shipquiz: using provider=%s model=%s base_url=%s\n", cfg.Provider, cfg.Model, cfg.BaseURL)
+		return
+	}
+	fmt.Fprintf(os.Stderr, "shipquiz: using provider=%s model=%s\n", cfg.Provider, cfg.Model)
 }
 
 func postQuiz(ctx context.Context, gh *GitHub, client llm.Client, cfg config.Config, number int, base, head string) int {

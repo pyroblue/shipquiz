@@ -8,7 +8,47 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
+
+	"github.com/shipquiz/shipquiz/internal/config"
 )
+
+func TestApplyActionEnvLogsMissingProviderAndModel(t *testing.T) {
+	t.Setenv("SHIPQUIZ_PROVIDER", "")
+	t.Setenv("SHIPQUIZ_MODEL", "")
+	t.Setenv("SHIPQUIZ_BASE_URL", "")
+	stderr := captureFile(t, &os.Stderr)
+
+	cfg := applyActionEnv(config.Config{Provider: "anthropic", Model: "claude-sonnet-4-5"})
+	got := stderr.stop()
+	if cfg.Provider != "anthropic" || cfg.Model != "claude-sonnet-4-5" {
+		t.Fatalf("cfg = %#v", cfg)
+	}
+	for _, want := range []string{
+		"SHIPQUIZ_PROVIDER is not set; using anthropic",
+		"SHIPQUIZ_MODEL is not set; using claude-sonnet-4-5",
+		"SHIPQUIZ_BASE_URL is not set; using the provider default",
+	} {
+		if !strings.Contains(got, want) {
+			t.Fatalf("stderr missing %q:\n%s", want, got)
+		}
+	}
+}
+
+func TestApplyActionEnvKeepsExplicitValuesQuiet(t *testing.T) {
+	t.Setenv("SHIPQUIZ_PROVIDER", "xai")
+	t.Setenv("SHIPQUIZ_MODEL", "grok-4.6")
+	t.Setenv("SHIPQUIZ_BASE_URL", "https://api.x.ai/v1")
+	stderr := captureFile(t, &os.Stderr)
+
+	cfg := applyActionEnv(config.Config{Provider: "anthropic", Model: "claude-sonnet-4-5"})
+	got := stderr.stop()
+	if cfg.Provider != "xai" || cfg.Model != "grok-4.6" || cfg.BaseURL != "https://api.x.ai/v1" {
+		t.Fatalf("cfg = %#v", cfg)
+	}
+	if strings.Contains(got, "is not set") {
+		t.Fatalf("stderr = %q", got)
+	}
+}
 
 // TestMissingAPIKeyWarnsAndContinues checks that a pull request without the
 // model key skips the quiz instead of failing the job.
