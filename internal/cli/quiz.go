@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 
+	"golang.org/x/term"
+
 	"github.com/shipquiz/shipquiz/internal/config"
 	"github.com/shipquiz/shipquiz/internal/gitx"
 	"github.com/shipquiz/shipquiz/internal/keychain"
@@ -42,13 +44,13 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 	if err != nil {
 		return fail(err)
 	}
-	if hit && entry.Passed && !again {
+	if hit && entry.Passed && quiz.MultipleChoiceReady(entry.Generated) && !again {
 		fmt.Fprintln(os.Stderr, "shipquiz: this diff already passed")
 		return 0
 	}
 
 	var generated quiz.Generated
-	if hit && !again && len(entry.Generated.Questions) > 0 {
+	if hit && !again && quiz.MultipleChoiceReady(entry.Generated) {
 		generated = entry.Generated
 		fmt.Fprintln(os.Stderr, "shipquiz: using cached questions")
 	} else if cachedOnly {
@@ -77,6 +79,11 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 				}
 				return fail(fmt.Errorf("timed out generating questions after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
 			}
+			if out := modelOutput(err); out != nil && !hook {
+				fmt.Fprintf(os.Stderr, "shipquiz: %s\n", out.Error())
+				offerCopy(con, out.Error())
+				return 1
+			}
 			return fail(err)
 		}
 		entry = quiz.Entry{Generated: generated}
@@ -86,7 +93,7 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 	}
 
 	ui.PrintIntro(con.out, generated)
-	answers, err := ui.CollectAnswers(con.in, con.file, con.out, generated.Questions)
+	answers, err := ui.CollectChoices(con.in, con.file, con.out, generated.Questions)
 	if err != nil {
 		if hook || errors.Is(err, io.EOF) {
 			fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
@@ -95,32 +102,8 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		return fail(err)
 	}
 
-	apiKey, err := keychain.Get(cfg.Provider)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "shipquiz: no API key. Run shipquiz setup.")
-		return 1
-	}
-	client, err := llm.New(cfg.Provider, cfg.BaseURL, apiKey)
-	if err != nil {
-		return fail(err)
-	}
 	for {
-		gradeCtx, cancel := quiz.WithTimeout(context.Background(), cfg.Quiz.TimeoutSeconds)
-		stop := ui.Spin(os.Stderr, "grading answers")
-		ev, gradeErr := quiz.Grade(gradeCtx, client, cfg.Model, diff, generated.Questions, answers, cfg.Quiz.PassingAverage)
-		stop()
-		cancel()
-		if gradeErr != nil {
-			if timedOut(gradeCtx, gradeErr) {
-				if hook {
-					fmt.Fprintln(os.Stderr, "shipquiz: timed out grading; allowing this push")
-					return 0
-				}
-				return fail(fmt.Errorf("timed out grading after %ds. Raise quiz.timeout_seconds and try again", timeoutSeconds(cfg)))
-			}
-			return fail(gradeErr)
-		}
-
+		ev := quiz.GradeChoices(generated.Questions, answers)
 		entry.Generated = generated
 		entry.Passed = ev.Passed()
 		entry.Score = ev.Score
@@ -143,7 +126,7 @@ func runQuiz(diff quiz.Diff, hook, cachedOnly, again bool) int {
 		if !retry {
 			break
 		}
-		retried, answerErr := ui.CollectAnswers(con.in, con.file, con.out, missed)
+		retried, answerErr := ui.CollectChoices(con.in, con.file, con.out, missed)
 		if answerErr != nil {
 			if hook || errors.Is(answerErr, io.EOF) {
 				fmt.Fprintln(os.Stderr, "shipquiz: could not read answers. Push blocked. Use SHIPQUIZ_SKIP=1 or --no-verify.")
@@ -174,14 +157,14 @@ func missedQuestions(questions []quiz.Question, ev quiz.Evaluation) []quiz.Quest
 }
 
 func mergeAnswers(current, retried []quiz.Answer) []quiz.Answer {
-	replacements := make(map[string]string, len(retried))
+	replacements := make(map[string]quiz.Answer, len(retried))
 	for _, answer := range retried {
-		replacements[answer.ID] = answer.Text
+		replacements[answer.ID] = answer
 	}
 	merged := append([]quiz.Answer(nil), current...)
 	for i := range merged {
-		if text, ok := replacements[merged[i].ID]; ok {
-			merged[i].Text = text
+		if answer, ok := replacements[merged[i].ID]; ok {
+			merged[i] = answer
 			delete(replacements, merged[i].ID)
 		}
 	}
@@ -203,6 +186,37 @@ func timeoutSeconds(cfg config.Config) int {
 		return cfg.Quiz.TimeoutSeconds
 	}
 	return 60
+}
+
+func modelOutput(err error) *quiz.ModelOutput {
+	var out *quiz.ModelOutput
+	if errors.As(err, &out) {
+		return out
+	}
+	return nil
+}
+
+// offerCopy waits for c, then copies the model response. Other keys leave it on screen.
+func offerCopy(con console, text string) {
+	if con.file == nil || !term.IsTerminal(int(con.file.Fd())) {
+		return
+	}
+	fmt.Fprintln(con.out, ui.Muted(con.out, "press c to copy this response"))
+	state, err := term.MakeRaw(int(con.file.Fd()))
+	if err != nil {
+		return
+	}
+	defer term.Restore(int(con.file.Fd()), state)
+	b, err := con.in.ReadByte()
+	fmt.Fprint(con.out, "\r\n")
+	if err != nil || (b != 'c' && b != 'C') {
+		return
+	}
+	if err := copyText(text); err != nil {
+		fmt.Fprintf(os.Stderr, "shipquiz: could not copy: %v\n", err)
+		return
+	}
+	fmt.Fprintln(os.Stderr, "shipquiz: copied")
 }
 
 func fail(err error) int {

@@ -2,12 +2,26 @@ package quiz
 
 import (
 	"context"
-	"fmt"
 	"strings"
 	"time"
 
 	"github.com/shipquiz/shipquiz/internal/llm"
 )
+
+// ModelOutput is a generation failure that keeps the model's response.
+type ModelOutput struct {
+	Reason string
+	Raw    string
+}
+
+// Error prints the reason and the response the model sent.
+func (e *ModelOutput) Error() string {
+	body := strings.TrimSpace(e.Raw)
+	if body == "" {
+		return e.Reason
+	}
+	return e.Reason + "\n\n" + body
+}
 
 // Generate asks the model for questions and normalizes the result.
 func Generate(ctx context.Context, client llm.Client, model string, diff Diff, style string, minQ, maxQ int) (Generated, error) {
@@ -27,12 +41,19 @@ func Generate(ctx context.Context, client llm.Client, model string, diff Diff, s
 	}
 	g, err := ParseGenerated(raw)
 	if err != nil {
-		return Generated{}, err
+		return Generated{}, &ModelOutput{Reason: err.Error(), Raw: raw}
 	}
 	g = Normalize(g, minQ, maxQ)
 	if len(g.Questions) == 0 {
-		return Generated{}, fmt.Errorf("the model returned no questions")
+		return Generated{}, &ModelOutput{Reason: "the model returned no questions", Raw: raw}
 	}
+	if issue := ChoiceIssue(g); issue != "" {
+		return Generated{}, &ModelOutput{
+			Reason: "the model returned an invalid multiple-choice quiz\n" + issue,
+			Raw:    raw,
+		}
+	}
+	RotateChoices(&g)
 	return g, nil
 }
 

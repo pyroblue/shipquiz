@@ -51,6 +51,8 @@ func renderQuiz(marker Marker) (string, error) {
 	for i := range marker.Quiz.Questions {
 		marker.Quiz.Questions[i].Reference = ""
 		marker.Quiz.Questions[i].WhyItMatters = ""
+		marker.Quiz.Questions[i].CorrectChoice = 0
+		marker.Quiz.Questions[i].Explanation = ""
 	}
 	encoded, err := encodeMarker(marker)
 	if err != nil {
@@ -59,9 +61,13 @@ func renderQuiz(marker Marker) (string, error) {
 	var b strings.Builder
 	fmt.Fprintf(&b, "<!-- shipquiz %s -->\n\n", encoded)
 	fmt.Fprintf(&b, "## shipquiz\n\n**%s** — %s\n\n", blank(marker.Quiz.Size, "change"), marker.Quiz.Summary)
-	b.WriteString("Reply in this thread with your answers, in your own words. The model matches the reply to each question.\n\n")
+	b.WriteString("Reply with the selected number for each question, in order. For example: `2, 1, 3`.\n\n")
 	for _, question := range marker.Quiz.Questions {
 		fmt.Fprintf(&b, "### %s\n\n%s\n\n", question.ID, question.Question)
+		for i, choice := range question.Choices {
+			fmt.Fprintf(&b, "%d. %s\n", i+1, choice)
+		}
+		b.WriteString("\n")
 	}
 	return b.String(), nil
 }

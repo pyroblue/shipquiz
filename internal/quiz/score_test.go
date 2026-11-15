@@ -50,3 +50,33 @@ func TestNormalizeAssignsIDsAndCap(t *testing.T) {
 		t.Fatalf("first = %#v", g.Questions[0])
 	}
 }
+
+func TestGradeChoicesIsDeterministic(t *testing.T) {
+	questions := []Question{
+		{ID: "q1", Choices: []string{"A", "B", "C"}, CorrectChoice: 2, Explanation: "B owns it."},
+		{ID: "q2", Choices: []string{"D", "E", "F"}, CorrectChoice: 1, Explanation: "D contains it."},
+	}
+	ev := GradeChoices(questions, []Answer{
+		{ID: "q1", Choice: 2},
+		{ID: "q2", Choice: 3},
+	})
+	if ev.Passed() || ev.Score != 1 || ev.PerQuestion[0].Score != 2 || ev.PerQuestion[1].Score != 0 {
+		t.Fatalf("evaluation = %#v", ev)
+	}
+	if ev.PerQuestion[1].Comment != "D contains it." {
+		t.Fatalf("comment = %q", ev.PerQuestion[1].Comment)
+	}
+}
+
+func TestRotateChoicesKeepsCorrectAnswer(t *testing.T) {
+	g := Generated{Questions: []Question{{
+		Question:      "Which boundary owns this?",
+		Choices:       []string{"wrong", "correct", "also wrong"},
+		CorrectChoice: 2,
+	}}}
+	RotateChoices(&g)
+	q := g.Questions[0]
+	if q.Choices[q.CorrectChoice-1] != "correct" {
+		t.Fatalf("question = %#v", q)
+	}
+}

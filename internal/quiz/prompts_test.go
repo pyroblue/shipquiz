@@ -18,6 +18,8 @@ func TestGenerationPromptUsesArchitectureQualityGates(t *testing.T) {
 		"Avoid implementation verbs",
 		"Reject questions answered by merely restating the diff",
 		"Diff size alone never justifies more questions.",
+		"Give exactly three short, mutually exclusive choices.",
+		"correct_choice",
 	} {
 		if !strings.Contains(prompt, want) {
 			t.Fatalf("prompt missing %q", want)

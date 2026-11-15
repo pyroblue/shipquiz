@@ -31,30 +31,47 @@ func TestQuestionLabelKeepsOriginalNumberOnRetry(t *testing.T) {
 	}
 }
 
-func TestCtrlGShowsAnswerWithoutSubmitting(t *testing.T) {
+func TestCollectChoicesScoresSingleKeySelection(t *testing.T) {
 	var out bytes.Buffer
-	in := bufio.NewReader(strings.NewReader("hel\x07lo\n\n"))
-	got, err := editAnswer(in, nil, &out, "The cache owns invalidation.", false)
+	in := bufio.NewReader(strings.NewReader("2\n"))
+	questions := []quiz.Question{{
+		ID:            "q1",
+		Question:      "Who owns the boundary?",
+		Choices:       []string{"The CLI", "The API", "The cache"},
+		CorrectChoice: 2,
+		Explanation:   "The API owns the boundary.",
+	}}
+	answers, err := CollectChoices(in, nil, &out, questions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "hello" {
-		t.Fatalf("answer = %q", got)
+	if len(answers) != 1 || answers[0].Choice != 2 || answers[0].Text != "The API" {
+		t.Fatalf("answers = %#v", answers)
 	}
-	if !strings.Contains(out.String(), "The cache owns invalidation.") {
+	if !strings.Contains(out.String(), "correct") {
 		t.Fatalf("output:\n%s", out.String())
 	}
 }
 
-func TestBlankLineSubmits(t *testing.T) {
+func TestQuestionMarkRevealsAndCountsIncorrect(t *testing.T) {
 	var out bytes.Buffer
-	in := bufio.NewReader(strings.NewReader("one\ntwo\n\n"))
-	got, err := editAnswer(in, nil, &out, "", false)
+	in := bufio.NewReader(strings.NewReader("?\n"))
+	questions := []quiz.Question{{
+		ID:            "q1",
+		Question:      "Who owns the boundary?",
+		Choices:       []string{"The CLI", "The API", "The cache"},
+		CorrectChoice: 2,
+		Explanation:   "The API owns the boundary.",
+	}}
+	answers, err := CollectChoices(in, nil, &out, questions)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if got != "one\ntwo" {
-		t.Fatalf("answer = %q", got)
+	if answers[0].Choice != 0 {
+		t.Fatalf("answers = %#v", answers)
+	}
+	if !strings.Contains(out.String(), "2 · The API") {
+		t.Fatalf("output:\n%s", out.String())
 	}
 }
 

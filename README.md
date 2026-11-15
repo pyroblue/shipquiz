@@ -2,7 +2,7 @@
 
 You're the captain. Ship only what you can explain.
 
-shipquiz asks a few questions about your change and blocks `git push` until the answers show you understand it. You use your own API key and model. The diff never goes to a shipquiz server.
+shipquiz asks a few questions about your change. It can block `git push`, fail a CI check, or run on its own as a skill. You might not have written the code. You still have to understand the architecture. You use your own API key and model. The diff never goes to a shipquiz server.
 
 Use a pre-push hook, a GitHub Action, or an agent skill. All three run the same command-line tool, which calls your model provider. shipquiz does not store API keys or diffs.
 
@@ -107,13 +107,13 @@ The hook is a short shell script. It runs the CLI with the commits git was about
 - `SHIPQUIZ_SKIP=1` prints a skip line and lets the push through. `git push --no-verify` skips the hook entirely.
 - Set `hooks.pre_push` to false to leave the hook installed but skip the quiz.
 
-You answer in the terminal, one question at a time. A blank line submits the answer. If you fail and try the same diff again, shipquiz reuses the questions and only calls the model to grade.
+You answer in the terminal, one question at a time, by pressing 1, 2, or 3. The CLI immediately explains the answer and scores it locally. Press `?` to reveal the answer and count that attempt as incorrect.
 
 ## GitHub Action
 
 On a pull request, the Action posts the questions as a comment and opens a check named `shipquiz` with the result `action_required`. Require that check in branch protection if you want it to block merging. The diff is sent to your model provider, not to shipquiz.
 
-Reply in the thread in your own words. The model matches that reply to the questions. A comment that is not an answer is left alone.
+Reply with the selected numbers in question order, such as `2, 1, 3`. A comment that is not an answer is left alone.
 
 When the reply answers the quiz, the workflow posts what was missing and marks the check passed or failed. A failed quiz also fails the job. The repository secret is `SHIPQUIZ_LLM_API_KEY`, and its value is the model provider key.
 
@@ -135,9 +135,9 @@ The same file is in this repo at `skills/shipquiz/SKILL.md` and on the site at [
 
 ## Scoring
 
-Each answer is 0 (wrong or missing), 1 (partial), or 2 (clear). The quiz passes only when the average is at least `passing_average` (default 1.5) and no question scored 0. shipquiz checks this itself after the model replies, so one wrong answer still fails the quiz.
+Each terminal choice is 0 (incorrect) or 2 (correct). The terminal scores choices locally, so grading is immediate and deterministic. Every question must be correct to pass.
 
-Questions have to be about this diff. They stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs. The model asks one question per meaningful architectural decision. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct architectural decisions. The hard cap is 5. Ctrl-G shows a reference answer. A blank line submits. Even a trivial change gets one question.
+Questions have to be about this diff. They stay at the system and product level: purpose, ownership, boundaries, guarantees, failure behavior, and major trade-offs. The model asks one question per meaningful architectural decision. Most quizzes have 1–3 questions; 4–5 are reserved for diffs with that many distinct architectural decisions. The hard cap is 5. Each question has one correct choice and two plausible misconceptions. Even a trivial change gets one question.
 
 After a failed quiz, shipquiz offers to retake only the questions scored 0 or 1. Correct answers are preserved.
 

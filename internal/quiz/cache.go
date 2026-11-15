@@ -21,7 +21,7 @@ type Entry struct {
 
 // Key identifies a generated quiz for this diff, model, and style.
 func Key(base, head, diff, model, style string) string {
-	sum := sha256.Sum256([]byte(base + "\n" + head + "\n" + diff + "\n" + model + "\n" + style))
+	sum := sha256.Sum256([]byte("multiple-choice-v1\n" + base + "\n" + head + "\n" + diff + "\n" + model + "\n" + style))
 	return hex.EncodeToString(sum[:])
 }
 

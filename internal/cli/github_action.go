@@ -232,7 +232,7 @@ func printSecretSteps(con console, path string, wrote bool, secret string) int {
 		ui.Hint(con.out, "The workflow is "+path+". The key is not in that file.")
 	}
 	ui.Hint(con.out, "Require the shipquiz check in branch protection if a failed quiz should block merging.")
-	ui.Hint(con.out, "People reply to the quiz comment in their own words.")
+	ui.Hint(con.out, "People reply with selected choice numbers in question order.")
 
 	if repo == "" {
 		fmt.Fprintf(con.out, "\n  gh secret set %s\n", llmSecret)

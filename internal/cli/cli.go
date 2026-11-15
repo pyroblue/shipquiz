@@ -16,6 +16,9 @@ func Run(args []string) int {
 		usage(os.Stdout)
 		return 0
 	}
+	if interactiveCommand(args[0]) {
+		offerUpdate(args[0])
+	}
 	switch args[0] {
 	case "help", "-h", "--help":
 		usage(os.Stdout)
@@ -74,5 +77,8 @@ to shipquiz.
 
 Skip one push:  SHIPQUIZ_SKIP=1 git push
                 git push --no-verify
+
+A newer release asks before it replaces this binary.
+SHIPQUIZ_NO_UPDATE=1 skips that check.
 `, version.Current)
 }

@@ -4,14 +4,13 @@ import (
 	"archive/tar"
 	"compress/gzip"
 	"context"
-	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"time"
 
@@ -25,8 +24,6 @@ import (
 	"github.com/shipquiz/shipquiz/internal/ui"
 	"github.com/shipquiz/shipquiz/internal/version"
 )
-
-const releaseRepo = "pyroblue/shipquiz"
 
 func cmdInstall() int {
 	if !gitx.Inside() {
@@ -136,56 +133,29 @@ func cmdConfig(args []string) int {
 func cmdUpdate() int {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
-	asset := fmt.Sprintf("shipquiz_%s_%s.tar.gz", runtime.GOOS, runtime.GOARCH)
-	url := fmt.Sprintf("https://api.github.com/repos/%s/releases/latest", releaseRepo)
-	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	rel, err := fetchRelease(ctx)
 	if err != nil {
-		return fail(err)
-	}
-	req.Header.Set("accept", "application/vnd.github+json")
-	req.Header.Set("user-agent", "shipquiz/"+version.Current)
-	res, err := http.DefaultClient.Do(req)
-	if err != nil {
-		return fail(err)
-	}
-	defer res.Body.Close()
-	if res.StatusCode == http.StatusNotFound {
-		fmt.Fprintln(os.Stderr, "shipquiz: no release published yet. Build from source:")
-		fmt.Fprintln(os.Stderr, "  go build -o ~/.shipquiz/bin/shipquiz ./cmd/shipquiz")
-		return 1
-	}
-	if res.StatusCode >= 300 {
-		return fail(fmt.Errorf("release lookup returned %d", res.StatusCode))
-	}
-	var payload struct {
-		TagName string `json:"tag_name"`
-		Assets  []struct {
-			Name string `json:"name"`
-			URL  string `json:"browser_download_url"`
-		} `json:"assets"`
-	}
-	if err := json.NewDecoder(res.Body).Decode(&payload); err != nil {
-		return fail(err)
-	}
-	download := ""
-	for _, item := range payload.Assets {
-		if item.Name == asset {
-			download = item.URL
-			break
+		if errors.Is(err, errNoRelease) {
+			fmt.Fprintln(os.Stderr, "shipquiz: no release published yet. Build from source:")
+			fmt.Fprintln(os.Stderr, "  go build -o ~/.shipquiz/bin/shipquiz ./cmd/shipquiz")
+			return 1
 		}
-	}
-	if download == "" {
-		return fail(fmt.Errorf("release %s has no %s", payload.TagName, asset))
-	}
-	bin, err := downloadBinary(ctx, download)
-	if err != nil {
 		return fail(err)
 	}
-	if err := replaceExecutable(bin); err != nil {
+	if err := installRelease(ctx, rel); err != nil {
 		return fail(err)
 	}
-	fmt.Printf("shipquiz: updated to %s\n", payload.TagName)
+	fmt.Printf("shipquiz: updated to %s\n", rel.Tag)
 	return 0
+}
+
+// installRelease downloads the release archive and replaces this binary.
+func installRelease(ctx context.Context, rel githubRelease) error {
+	bin, err := downloadBinary(ctx, rel.URL)
+	if err != nil {
+		return err
+	}
+	return replaceExecutable(bin)
 }
 
 func downloadBinary(ctx context.Context, url string) ([]byte, error) {

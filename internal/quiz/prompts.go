@@ -49,11 +49,12 @@ Clarity gate:
 - Reject questions answered by merely restating the diff or a product requirement.
 - Reject questions about quiz mechanics unless they define important user behavior.
 
-References:
-- reference is the direct answer in one short, plain-language sentence.
-- reference must explain the architectural point, not paraphrase the question.
-- reference is hidden until the developer asks.
-- The developer should be able to answer in one sentence.
+Choices:
+- Give exactly three short, mutually exclusive choices.
+- One choice is correct. The other two are plausible misconceptions.
+- Avoid trick wording, “all of the above,” and obviously silly distractors.
+- Keep choices similar in length and vary the position of the correct choice.
+- explanation teaches why the correct choice is right in one short sentence.
 
 Rules:
 - Produce between %d and %d questions. Never exceed %d. Never return zero questions.
@@ -67,7 +68,13 @@ Rules:
   "size": "trivial|tiny|small|medium|large",
   "summary": "one sentence",
   "questions": [
-    {"id": "q1", "question": "...", "reference": "..."}
+    {
+      "id": "q1",
+      "question": "...",
+      "choices": ["...", "...", "..."],
+      "correct_choice": 2,
+      "explanation": "..."
+    }
   ]
 }
 
@@ -83,6 +90,8 @@ const evaluationSystem = "You output only JSON. No markdown fences, no preamble.
 const evaluationTemplate = `Score the developer’s answers. Be strict but fair.
 
 Judge architectural understanding. A short answer that names the right piece and its role is a 2.
+Questions may be multiple choice. Resolve a numbered answer against its choices,
+then use the diff to decide whether that choice is correct.
 
 Per question: 0 (wrong/missing), 1 (partial), 2 (clear understanding).
 
@@ -136,12 +145,16 @@ const interpretSystem = "You output only JSON. No markdown fences, no preamble."
 
 const interpretTemplate = `A reviewer replied to a shipquiz comment. Decide whether the reply tries to answer the quiz, and copy out each answer.
 
-The reply may be prose, a list, or labeled. Labels are not required.
+The reply may be prose, labeled, or a list of selected choice numbers in
+question order, such as "2, 1, 3". Labels are not required.
 
 attempted is false when the comment is not answering the quiz, such as "LGTM", a question back to the author, or unrelated discussion.
 attempted is true when the reply tries to answer one or more questions, even if some answers are missing or wrong.
 
-When attempted is true, return one entry per question id. text is the part of the reply that answers that question, copied from the reply. Use an empty string when that question was not answered. Do not invent an answer.
+When attempted is true, return one entry per question id. text is the selected
+choice number or the part of the reply that answers that question, copied from
+the reply. Use an empty string when that question was not answered. Do not
+invent an answer.
 
 Output only JSON:
 
